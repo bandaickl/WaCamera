@@ -173,6 +173,10 @@ public final class WaCameraClient {
         if (busy()) throw new IllegalStateException(Component.translatable("wacamera.error.busy").getString());
         if (mc.level == null || mc.player == null || !mc.player.isAlive()) throw new IllegalStateException("No living player");
         if (!value.dimension().equals(mc.level.dimension().location().toString())) throw new IllegalArgumentException(Component.translatable("wacamera.error.dimension").getString());
+        if (!preview) {
+            ShaderCapturePipeline.validate();
+            SodiumCompatibility.validate();
+        }
         PathSampler candidate = new PathSampler(value);
         validateLoaded(mc, value, candidate);
         CameraPose initialPose = candidate.sample(0, selfTarget(1));
@@ -319,7 +323,7 @@ public final class WaCameraClient {
     public static void renderRecordingPass(net.minecraft.client.renderer.GameRenderer renderer, net.minecraft.client.DeltaTracker delta) {
         if ((state != State.RECORDING && state != State.COUNTDOWN) || dualPass == null) return;
         try { dualPass.render(renderer, delta); }
-        catch (RuntimeException e) { error(e); deferredStop = ""; }
+        catch (RuntimeException | LinkageError e) { error(e); deferredStop = ""; }
         if (deferredStop != null) {
             String reason = deferredStop;
             deferredStop = null;
@@ -431,8 +435,16 @@ public final class WaCameraClient {
     }
     public static void notice(String text) { status = text; noticeUntil = System.nanoTime() + 10_000_000_000L; }
     public static void error(Throwable cause) {
-        while (cause.getCause() != null) cause = cause.getCause();
-        notice(cause.getMessage() == null ? cause.toString() : cause.getMessage());
+        System.getLogger("wacamera").log(System.Logger.Level.ERROR, "Camera operation failed", cause);
+        while ((cause instanceof java.util.concurrent.CompletionException
+                || cause instanceof java.util.concurrent.ExecutionException
+                || cause instanceof java.lang.reflect.InvocationTargetException) && cause.getCause() != null)
+            cause = cause.getCause();
+        String message = cause.getMessage() == null ? cause.toString() : cause.getMessage();
+        notice(message);
+        // A partial video can still finish saving; retain the cause even after the saved notification.
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) mc.player.displayClientMessage(Component.literal("WaCamera: " + message), false);
     }
     public static void openOutputFolder() { Util.getPlatform().openFile(root().resolve("recordings").toFile()); }
 }

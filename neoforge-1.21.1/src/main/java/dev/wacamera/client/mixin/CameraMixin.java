@@ -19,6 +19,7 @@ public abstract class CameraMixin {
 
     @Inject(method = "setup", at = @At("TAIL"))
     private void wacamera$pose(BlockGetter world, Entity entity, boolean thirdPerson, boolean mirrored, float partialTick, CallbackInfo ci) {
+        if (WaCameraClient.isRecordingPass() && (Object) this != WaCameraClient.recordingCamera()) return;
         CameraPose p = WaCameraClient.sampleCamera(partialTick);
         if (p == null) return;
         setPosition(p.x(), p.y(), p.z());

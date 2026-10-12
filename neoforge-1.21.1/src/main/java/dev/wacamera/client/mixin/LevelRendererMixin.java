@@ -2,19 +2,14 @@ package dev.wacamera.client.mixin;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import dev.wacamera.client.CaptureLevelRenderer;
+import dev.wacamera.client.SodiumCompatibility;
 import dev.wacamera.client.WaCameraClient;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.client.Camera;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.PostChain;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.ViewArea;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
-import net.minecraft.client.renderer.chunk.RenderRegionCache;
 import net.minecraft.client.renderer.culling.Frustum;
-import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,14 +21,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import java.util.Comparator;
 
 @Mixin(LevelRenderer.class)
 public abstract class LevelRendererMixin implements CaptureLevelRenderer {
     @Shadow @Final @Mutable private ObjectArrayList<SectionRenderDispatcher.RenderSection> visibleSections;
-    @Shadow private ViewArea viewArea;
-    @Shadow private ClientLevel level;
-    @Shadow private SectionRenderDispatcher sectionRenderDispatcher;
     @Shadow private Frustum cullingFrustum;
     @Shadow private Frustum capturedFrustum;
     @Shadow private boolean captureFrustum;
@@ -48,8 +39,11 @@ public abstract class LevelRendererMixin implements CaptureLevelRenderer {
     @Unique private double[] wacamera$transparencyPosition;
 
     @Override public void wacamera$beginCapture() {
-        wacamera$normalChunks = visibleSections;
-        visibleSections = new ObjectArrayList<>();
+        // Sodium and Iris own their terrain/shadow lists. Only vanilla uses our separate visible list.
+        if (!SodiumCompatibility.isPresent()) {
+            wacamera$normalChunks = visibleSections;
+            visibleSections = new ObjectArrayList<>();
+        }
         wacamera$normalFrustum = cullingFrustum;
         wacamera$capturedFrustum = capturedFrustum;
         wacamera$captureFrustum = captureFrustum;
@@ -64,7 +58,7 @@ public abstract class LevelRendererMixin implements CaptureLevelRenderer {
     }
 
     @Override public void wacamera$endCapture() {
-        visibleSections = wacamera$normalChunks;
+        if (wacamera$normalChunks != null) visibleSections = wacamera$normalChunks;
         wacamera$normalChunks = null;
         cullingFrustum = wacamera$normalFrustum;
         capturedFrustum = wacamera$capturedFrustum;
@@ -74,32 +68,6 @@ public abstract class LevelRendererMixin implements CaptureLevelRenderer {
         weatherTarget = wacamera$targets[3]; cloudsTarget = wacamera$targets[4];
         xTransparentOld = wacamera$transparencyPosition[0]; yTransparentOld = wacamera$transparencyPosition[1]; zTransparentOld = wacamera$transparencyPosition[2];
     }
-
-    @Inject(method = "setupRender", at = @At("HEAD"), cancellable = true)
-    private void wacamera$visibility(Camera camera, Frustum frustum, boolean captured, boolean spectator, CallbackInfo ci) {
-        if (!WaCameraClient.isRecordingPass()) return;
-        ci.cancel();
-        if (viewArea == null) return;
-        var position = camera.getPosition();
-        // The player's asynchronous occlusion graph remains untouched. Only loaded render sections are considered.
-        var chunks = new java.util.ArrayList<SectionRenderDispatcher.RenderSection>();
-        for (var chunk : viewArea.sections) if (frustum.isVisible(chunk.getBoundingBox())) chunks.add(chunk);
-        chunks.sort(Comparator.comparingDouble(chunk -> chunk.getOrigin().distToCenterSqr(position.x, position.y, position.z)));
-        RenderRegionCache regions = new RenderRegionCache();
-        int scheduled = 0;
-        for (var chunk : chunks) {
-            visibleSections.add(chunk);
-            // A camera can see behind the player. Compile a bounded number of additional sections asynchronously.
-            if (scheduled < 4 && chunk.isDirty() && level.getLightEngine().lightOnInSection(SectionPos.of(chunk.getOrigin()))) {
-                chunk.rebuildSectionAsync(sectionRenderDispatcher, regions);
-                chunk.setNotDirty();
-                ++scheduled;
-            }
-        }
-    }
-
-    @Inject(method = "compileSections", at = @At("HEAD"), cancellable = true)
-    private void wacamera$compile(Camera camera, CallbackInfo ci) { if (WaCameraClient.isRecordingPass()) ci.cancel(); }
 
     @Inject(method = {"shouldShowEntityOutlines"}, at = @At("HEAD"), cancellable = true)
     private void wacamera$outlines(CallbackInfoReturnable<Boolean> cir) { if (WaCameraClient.isRecordingPass()) cir.setReturnValue(false); }
@@ -113,8 +81,4 @@ public abstract class LevelRendererMixin implements CaptureLevelRenderer {
     @Redirect(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/lighting/LevelLightEngine;runLightUpdates()I"))
     private int wacamera$lightUpdates(LevelLightEngine engine) { return WaCameraClient.isRecordingPass() ? 0 : engine.runLightUpdates(); }
 
-    @Redirect(method = "renderSectionLayer", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/chunk/SectionRenderDispatcher$RenderSection;resortTransparency(Lnet/minecraft/client/renderer/RenderType;Lnet/minecraft/client/renderer/chunk/SectionRenderDispatcher;)Z"))
-    private boolean wacamera$transparencySort(SectionRenderDispatcher.RenderSection chunk, RenderType type, SectionRenderDispatcher dispatcher) {
-        return !WaCameraClient.isRecordingPass() && chunk.resortTransparency(type, dispatcher);
-    }
 }

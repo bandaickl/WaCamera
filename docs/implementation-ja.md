@@ -1,5 +1,11 @@
 # WaCamera 制作設計
 
+2026-10-12、1.0.1でNeoForge 1.21.1へ独立シェーダー録画を移植。Iris 1.8.12＋Sodium 0.6.13の実JAR APIと対応時期のソースを照合する。Forgeの機能は変更しない。ビルド確認はassemble（ForgeのreobfJarを含む）のみを対象とし、利用者の希望によりMinecraft起動・自動テスト・実録画は行わない。結果は`testing-ja.md`の1.0.1節に分けて記録する。現在の配布先は`dist/1.0.1/`。
+
+撮影用Irisパイプラインの構築自体が途中で失敗した場合、Irisから部分オブジェクトを受け取れず、作成途中のGPU資源をすべて回収することはできない。新規SSBOは差分で回収し、それ以上のシェーダー録画の再試行はMinecraft再起動まで拒否する。通常の構築完了後は撮影所有の資源を停止時に破棄する。
+
+以下の日付付き更新は各版の履歴である。
+
 2026-10-12、公開用バージョンを1.0へ統一。ローダーのメタデータに共通ロゴを指定し、ForgeのreobfJarとNeoForgeの通常JARを配布する。`scripts/build.ps1 -Release`は現在のバージョンのJARだけを`dist/1.0/`へ集める。`-SkipTests -SkipNative`併用では既存の音声ヘルパーを利用してassembleだけを実行し、ゲーム起動・テストを行わない。
 
 2026-10-08、alpha.7でバックグラウンド録画を追加。`isBackgroundRecording()`はPREPARING／COUNTDOWN／RECORDINGに限定する。`beforeRender()`のフォーカス喪失による停止をPREVIEWだけに制限し、テスト時だけフォーカスを無視する既存分岐を削除する。`GameRenderer.render`内の`Options.pauseOnLostFocus`読み取りだけをMixinでfalseとし、設定の保存・復元を必要としない。`mc.isPaused()`による手動ポーズ時の終了は維持する。`Minecraft.getFramerateLimit`は録画中かつ非アクティブ時だけ、元の上限と `max(10, ceil(出力fps / 倍率))` の大きい方を返す。最小10fpsはPBO回収用。通常の上限・無制限扱い・前面時・終了後は元の値を使う。GPUドライバーや外部MODの制限はこのフックだけで解除できるとは限らない。
@@ -50,6 +56,11 @@ Forge 1.20.1はJava 17、NeoForge 1.21.1はJava 21を使う。ローダーとMin
 | Forgeの`ShaderCaptureState` | 撮影用のフレーム時計を保持し、共有する描画・影・uniformの状態を退避・復元 |
 | Forgeの`WindowMixin` | 撮影中のシェーダー最終描画へ録画ターゲットの幅・高さを返す |
 | Forgeの`DistantHorizonCaptureBuffers` | DH 2.3.4の撮影用FBO・色／深度テクスチャ等を通常画面から分離して管理 |
+| NeoForgeの`WaCameraMixinPlugin`／`VanillaLevelRendererMixin` | バニラ用のチャンク描画フックをSodium導入時に外し、置換描画との競合を避ける |
+| NeoForgeの`SodiumCompatibility` | 撮影前後に地形の可視性を更新し、二視点のカメラとFOVを反映 |
+| NeoForgeの`ShaderCompatibility` | Irisの利用状態を確認し、シェーダー有効＋DHの未対応構成を拒否 |
+| NeoForgeの`ShaderCapturePipeline`／`ShaderCaptureState` | Iris 1.8.12向けの独立gbuffer・影・履歴・Sodium programsと、共有状態の退避・復元 |
+| NeoForgeの`WindowMixin`／Iris用Mixin | 撮影時だけ録画サイズと独立Cameraの情報をシェーダーへ渡す |
 | `GlFrameCapture` | 撮影用FBOの画像をPBO経由で読み出す。OpenGL操作のみ |
 | `CfrTimeline` | 実撮影時刻を倍率付きの出力スロットへ対応させ、固定出力fpsの順序にする |
 | `RecordingOptions` | 出力解像度・fps、実撮影秒数、録画倍率。取得fpsと最大出力枚数を計算し、1倍超の音声を無効化 |
@@ -70,7 +81,7 @@ Forge 1.20.1はJava 17、NeoForge 1.21.1はJava 21を使う。ローダーとMin
 
 Minecraftの可視チャンク一覧は一視点用のキャッシュを持つ。バニラ描画では撮影側に独立したfrustumと読み込み済み描画チャンクから一覧を作り、通常側の非同期チャンク構築・可視性キャッシュを汚さない。単にCameraとFBOを交換するだけでは十分ではない。
 
-描画ターゲットの再バインド、自己表示、透明描画、投影行列、GL状態、例外時の復元を版別Mixinで処理する。通常のFabulous合成ターゲットはプレイ画面に結びついているため、バニラ描画の撮影側ではFancy相当の経路を使う。ユーザーの画質設定そのものは変更しない。シェーダー有効時は、以下のForge専用の独立パイプラインを使う。
+描画ターゲットの再バインド、自己表示、透明描画、投影行列、GL状態、例外時の復元を版別Mixinで処理する。通常のFabulous合成ターゲットはプレイ画面に結びついているため、バニラ描画の撮影側ではFancy相当の経路を使う。ユーザーの画質設定そのものは変更しない。シェーダー有効時は、以下の版別の独立パイプラインを使う。
 
 alpha.4のForge版では、Embeddium 0.3.31による`renderChunkLayer`の置換と、WaCameraの`resortTransparency`呼び出しへのRedirectが競合する起動失敗を修正した。`setupRender`・`compileChunks`・透過面ソートのバニラ専用処理を`VanillaLevelRendererMixin`へ分け、Embeddium／Rubidium／Sodium系の描画MODがある場合は適用しない。描画先の退避・復元、アウトラインやデバッグ描画の抑制などの基礎的な処理は残す。
 
@@ -86,7 +97,21 @@ Embeddium経路では撮影前と撮影後の`finally`で地形の可視性を�
 
 Distant Horizonsとの連携では、描画前のフレーム処理を通常側で行い、DHのシェーダー・FBO・frustumの優先順位付き登録を撮影中だけ切り替えて復元する。追加の`DistantHorizonCaptureBuffers`はDH 2.3.4のキャッシュ寸法、プログラム、インデックスバッファー、FBO、色／深度テクスチャを描画ビューごとに保持する。異なるサイズの二視点でDHが繰り返し資源を作り直すことを避け、撮影終了時には撮影側の資源だけを解放する。地形データとその管理バッファーは共有したまま破棄しない。DH 2.3.4-bを併用した昼夜の実ゲーム録画に成功しているが、長時間の資源使用量は追加検証が必要である。
 
-Forge 47.4.10＋Embeddium 0.3.31＋Oculus 1.8.0＋DH 2.3.4-b＋Complementary Unbound r5.6で、昼夜各8秒・240フレームの録画と通常プレイの維持を確認した。これは他のパックやMOD全体の互換性を保証しない。NeoForge版にはこの独立シェーダー処理を移植していない。シェーダー有効時も開始自体を拒否する機構はないが、シェーダー録画は未対応・未保証である。
+Forge 47.4.10＋Embeddium 0.3.31＋Oculus 1.8.0＋DH 2.3.4-b＋Complementary Unbound r5.6で、昼夜各8秒・240フレームの録画と通常プレイの維持を確認した。これはalpha.4時点の実施記録で、他のパックやMOD全体の互換性を保証しない。
+
+### NeoForgeのシェーダー録画（1.0.1）
+
+対象はMinecraft 1.21.1用のIris 1.8.12と、その配布版が指定するSodium 0.6.13。実JARを`javap`で調べ、公開APIだけでなく、反射で扱うフィールド・メソッドも照合した。Irisの1.21.1ブランチの最新ソースは後続版向けのため、1.8.12公開前のcommit `b4b2c22c`のソースを参考にし、JARのシグネチャとバイトコードを優先する。外部MODのクラスは任意依存として反射で解決し、シェーダーなしの録画でIris・Sodiumを必須にしない。
+
+`ShaderCapturePipeline`は撮影専用の`IrisRenderingPipeline`を直接生成し、描画中だけ現在のpipelineとディメンション別の参照を交換する。gbuffer・影・TAA等の履歴を通常側と分け、LevelRendererの合成後に色変換を完了する。Iris 1.8.12は各pipelineが`SodiumPrograms`を所有し、地形描画時に現在のpipelineから取得するため、Forgeの旧地形プログラム差し替え方式は使わない。Sodiumの可視性は撮影前後に更新する。
+
+`ShaderCaptureState`と版別Mixinで撮影時計・カメラuniform・共有描画状態を切り替え、通常画面へ復元する。撮影中だけウィンドウ寸法の参照を録画ターゲットへ合わせる。Shader Storage Bufferのindexed binding範囲も退避・復元する。Iris 1.8.12の`ACTIVE_BUFFERS`は共有レジストリーなので丸ごと置き換えず、撮影が所有するバッファーだけをidentityで登録から外し、撮影側の終了処理で解放する。
+
+停止・再作成時は撮影所有のpipelineを破棄し、Iris 1.8.12の通常の`destroy()`で残るbegin/setup/shadow compute、色変換、Sodium programも有効状態を調べて解放する。constructor途中の失敗では生成したpipeline参照を取得できないため、登録済みSSBOの差分は回収するが、部分生成された全GPU資源の回収までは保証できない。
+
+NeoForgeのDH用二視点バッファー分離は実装しない。Irisのシェーダーが有効でDistant Horizonsも導入されている場合は、理由を表示して録画開始を止める。シェーダー無効時はこのガードを適用しない。Iris APIの不一致や描画中の失敗も録画側のエラーとして処理する。
+
+以上は実装と静的なAPI照合の記録である。利用者の希望により1.0.1ではMinecraft起動・自動テスト・実録画を行っておらず、NeoForgeでの画素・操作の維持・長時間のGPU使用量は未確認。Forgeの過去の録画結果をNeoForgeの実証として扱わない。
 
 `Camera.setup`終了付近への限定Mixinと必要なAccessorを版別に実装する候補を検証する。角度・FOVの公式イベントで足りる部分はイベントを使う。自己モデルを描画する条件、カメラの独立判定、フラスタム、描画距離、視点揺れ、音声リスナーも確認し、描画中だけの一時的な変数書き換えに依存しすぎない。
 

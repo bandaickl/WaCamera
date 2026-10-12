@@ -10,10 +10,10 @@ CurseForgeの「Source」欄にはソースコードのURLを設定します。�
 
 Releasesの「Assets」にある、自分のMinecraftとローダーに合うJARを一つ使います。GitHubが自動生成する「Source code (zip)」「Source code (tar.gz)」は開発用ソースであり、modsフォルダーへ入れるファイルではありません。
 
-1.0には次の配布ファイルを掲載します。
+**現在公開済みのReleaseはv1.0です。** 今回は1.0.1のソース更新とローカル配布物の準備までを行い、1.0.1のGitHub Releaseは作成しません。両版のビルドとJAR内容の確認が完了し、ローカルの`dist/1.0.1/`へ次のファイルを配置しました。将来公開する際は[1.0.1の変更履歴](release-1.0.1-changelog.md)の確認範囲を説明に残してください。
 
-- `wacamera-forge-1.20.1-1.0.jar`
-- `wacamera-neoforge-1.21.1-1.0.jar`
+- `wacamera-forge-1.20.1-1.0.1.jar`
+- `wacamera-neoforge-1.21.1-1.0.1.jar`
 - `SHA256SUMS.txt`：JARのダウンロード内容を確認するためのハッシュ値。
 
 ## 今後の更新

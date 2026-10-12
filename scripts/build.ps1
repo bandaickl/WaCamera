@@ -68,7 +68,7 @@ try {
             'docs/curseforge-description-en.md',
             'docs/curseforge-description-ja.md',
             'docs/curseforge-description-bilingual.md',
-            'docs/release-1.0-changelog.md',
+            "docs/release-$taskVersion-changelog.md",
             'docs/curseforge-upload-ja.md',
             'assets/branding/wacamera-logo.png',
             'assets/branding/logo-prompt.txt'
