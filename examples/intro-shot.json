@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "name": "intro-shot",
+  "dimension": "minecraft:overworld",
+  "durationSeconds": 10.0,
+  "countdownSeconds": 3,
+  "playbackSpeed": 1.0,
+  "positionInterpolation": "linear",
+  "speedMode": "constant",
+  "lookMode": "self",
+  "fovDegrees": 70.0,
+  "points": [
+    { "id": "a", "x": 100.0, "y": 72.0, "z": 100.0, "yawDegrees": -90.0, "pitchDegrees": 10.0 },
+    { "id": "b", "x": 110.0, "y": 75.0, "z": 100.0, "yawDegrees": -45.0, "pitchDegrees": 10.0 }
+  ]
+}

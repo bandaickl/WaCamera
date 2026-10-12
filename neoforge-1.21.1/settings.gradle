@@ -1,0 +1,5 @@
+pluginManagement { repositories { gradlePluginPortal(); maven { url = 'https://maven.neoforged.net/releases' } } }
+rootProject.name = 'wacamera-neoforge'
+include 'core', 'recorder'
+project(':core').projectDir = file('../core')
+project(':recorder').projectDir = file('../recorder')

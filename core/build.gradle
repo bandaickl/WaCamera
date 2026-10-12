@@ -1,0 +1,14 @@
+plugins { id 'java-library' }
+group = 'dev.wacamera'
+version = '1.0'
+repositories { mavenCentral() }
+java { toolchain.languageVersion = JavaLanguageVersion.of(17) }
+dependencies {
+    api 'com.google.code.gson:gson:2.10.1'
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.release = 17 }
+tasks.withType(Test).configureEach { useJUnitPlatform() }
+if (rootProject.name != 'wacamera') layout.buildDirectory = rootProject.layout.buildDirectory.dir('shared/core')

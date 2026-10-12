@@ -1,0 +1,13 @@
+WaCamera 1.0 logo — 2026-10-12
+Generation mode: built-in image_gen image editing.
+Final asset: assets/branding/wacamera-logo.png
+Original generated file retained in the Codex generated_images directory.
+
+Final prompt:
+Use case: logo-brand.
+Edit target: the existing WaCamera project icon.
+Primary request: REDESIGN this as an extremely simple, restrained, flat icon for a recording mod. The user rejects the glossy elaborate look. Preserve only the clear idea of a camera; discard all decorative styling from the reference.
+Visual specification: opaque square canvas in one uniform near-black charcoal color. In the center, one large solid off-white video-camera silhouette: a horizontally oriented rounded-rectangle body with one short trapezoid camera lens projecting from its right side. Add one small solid red recording-indicator circle inside the upper-left area of the camera body. The silhouette and indicator should remain legible when reduced to 48px.
+Style: flat 2D vector-like graphic, precise edges, balanced generous padding, three solid colors total. Deliberately plain, utilitarian and professionally proportioned.
+No letters, no W monogram, no text, no pixel texture, no Minecraft blocks, no shutter blades, no crosshairs, no viewfinder corners, no gradients, no shadows, no bevels, no lighting, no shine, no glow, no outlines, no 3D, no atmospheric background, no mockup or border. No added symbols. Just a simple video-camera symbol and red recording dot on a plain square background.
+Return one finished square PNG, 1:1 aspect ratio, opaque background, suitable for the actual CurseForge mod-list avatar.

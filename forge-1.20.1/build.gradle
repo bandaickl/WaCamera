@@ -1,0 +1,83 @@
+buildscript {
+    repositories { mavenCentral(); maven { url = 'https://repo.spongepowered.org/repository/maven-public/' } }
+    dependencies { classpath 'org.spongepowered:mixingradle:0.7.38' }
+}
+plugins {
+    id 'java'
+    id 'net.minecraftforge.gradle' version '6.0.54'
+}
+apply plugin: 'org.spongepowered.mixin'
+group = 'dev.wacamera'
+version = '1.0'
+base { archivesName = 'wacamera-forge-1.20.1' }
+java { toolchain.languageVersion = JavaLanguageVersion.of(17) }
+evaluationDependsOn(':core')
+evaluationDependsOn(':recorder')
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+    copyIdeResources = true
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'info'
+            if (project.hasProperty('smoke')) {
+                property 'wacamera.smokeTest', 'true'
+                property 'wacamera.smokeTimelapse', project.hasProperty('smokeTimelapse').toString()
+                property 'wacamera.smokeMarker', project.hasProperty('smokeMarker').toString()
+                property 'wacamera.smokeBackground', project.hasProperty('smokeBackground').toString()
+                property 'wacamera.smokeBackgroundIconify', project.hasProperty('smokeBackgroundIconify').toString()
+                property 'wacamera.smokeFfmpeg', project.findProperty('smokeFfmpeg') ?: 'ffmpeg'
+                property 'wacamera.smokeAudio', project.hasProperty('smokeAudio').toString()
+                property 'wacamera.smokeFabulous', project.hasProperty('smokeFabulous').toString()
+                property 'wacamera.smokeShaders', project.hasProperty('smokeShaders').toString()
+                args '--width', project.hasProperty('smokeShaders') ? '960' : '1280', '--height', project.hasProperty('smokeShaders') ? '600' : '720'
+            }
+            if (project.hasProperty('smokeExitSeconds')) property 'wacamera.smokeExitSeconds', project.property('smokeExitSeconds')
+            mods {
+                wacamera {
+                    source sourceSets.main
+                    source project(':core').sourceSets.main
+                    source project(':recorder').sourceSets.main
+                }
+            }
+        }
+    }
+}
+repositories { mavenCentral(); maven { url = 'https://repo.spongepowered.org/repository/maven-public/' } }
+// Optional local compatibility fixtures, copied from the reported instance; never bundled in WaCamera.
+if (project.hasProperty('compatMods')) {
+    repositories { flatDir { dirs '../.tools/compat-mods' } }
+}
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.4.10'
+    implementation project(':core')
+    implementation project(':recorder')
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    if (project.hasProperty('compatMods')) {
+        runtimeOnly fg.deobf('compat:embeddium:0.3.31+mc1.20.1')
+        runtimeOnly fg.deobf('compat:oculus:mc1.20.1-1.8.0')
+        if (project.hasProperty('compatDistantHorizons')) runtimeOnly fg.deobf('compat:DistantHorizons:2.3.4-b-1.20.1-fabric-forge')
+    }
+}
+mixin {
+    add sourceSets.main, 'wacamera.refmap.json'
+    config 'wacamera.mixins.json'
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+tasks.named('processResources') {
+    def audioBinary = file('../native-audio/windows/build/wacamera-audio.exe')
+    from(audioBinary) { into 'native/windows-x86_64' }
+    doFirst {
+        if (!audioBinary.isFile()) throw new GradleException('Build the Windows audio helper first: native-audio/windows/build.ps1')
+    }
+}
+tasks.named('jar', Jar) {
+    from('../LICENSE')
+    from('../THIRD_PARTY.md')
+    from project(':core').sourceSets.main.output
+    from project(':recorder').sourceSets.main.output
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest { attributes 'MixinConfigs': 'wacamera.mixins.json', 'Implementation-Version': project.version }
+    finalizedBy 'reobfJar'
+}

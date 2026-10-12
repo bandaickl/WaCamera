@@ -1,0 +1,58 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.147'
+}
+group = 'dev.wacamera'
+version = '1.0'
+base { archivesName = 'wacamera-neoforge-1.21.1' }
+java { toolchain.languageVersion = JavaLanguageVersion.of(21) }
+evaluationDependsOn(':core')
+evaluationDependsOn(':recorder')
+repositories { mavenCentral() }
+neoForge {
+    version = '21.1.251'
+    runs {
+        client {
+            client()
+            if (project.hasProperty('smoke')) {
+                systemProperty 'wacamera.smokeTest', 'true'
+                systemProperty 'wacamera.smokeTimelapse', project.hasProperty('smokeTimelapse').toString()
+                systemProperty 'wacamera.smokeMarker', project.hasProperty('smokeMarker').toString()
+                systemProperty 'wacamera.smokeBackground', project.hasProperty('smokeBackground').toString()
+                systemProperty 'wacamera.smokeBackgroundIconify', project.hasProperty('smokeBackgroundIconify').toString()
+                systemProperty 'wacamera.smokeFfmpeg', project.findProperty('smokeFfmpeg') ?: 'ffmpeg'
+                systemProperty 'wacamera.smokeAudio', project.hasProperty('smokeAudio').toString()
+                systemProperty 'wacamera.smokeFabulous', project.hasProperty('smokeFabulous').toString()
+                programArguments.addAll '--width', '1280', '--height', '720'
+            }
+            if (project.hasProperty('smokeExitSeconds')) systemProperty 'wacamera.smokeExitSeconds', project.property('smokeExitSeconds')
+        }
+    }
+    mods {
+        wacamera {
+            sourceSet(sourceSets.main)
+            sourceSet(project(':core').sourceSets.main)
+            sourceSet(project(':recorder').sourceSets.main)
+        }
+    }
+}
+dependencies {
+    implementation project(':core')
+    implementation project(':recorder')
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+tasks.named('processResources') {
+    def audioBinary = file('../native-audio/windows/build/wacamera-audio.exe')
+    from(audioBinary) { into 'native/windows-x86_64' }
+    doFirst {
+        if (!audioBinary.isFile()) throw new GradleException('Build the Windows audio helper first: native-audio/windows/build.ps1')
+    }
+}
+tasks.named('jar', Jar) {
+    from('../LICENSE')
+    from('../THIRD_PARTY.md')
+    from project(':core').sourceSets.main.output
+    from project(':recorder').sourceSets.main.output
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest { attributes 'Implementation-Version': project.version }
+}

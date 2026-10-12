@@ -1,0 +1,11 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven { url = 'https://maven.minecraftforge.net' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+    }
+}
+rootProject.name = 'wacamera-forge'
+include 'core', 'recorder'
+project(':core').projectDir = file('../core')
+project(':recorder').projectDir = file('../recorder')
