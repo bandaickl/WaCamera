@@ -1,6 +1,6 @@
 # External components
 
-WaCamera's camera, path, recorder, UI and process audio helper are implemented in this repository and published under the [MIT License](LICENSE). Flashback and Camera Studio code are not bundled. External components have their own license information, described below.
+WaCamera's camera, path, recorder, UI and process audio helper are implemented in this repository and published under the [MIT License](LICENSE). External components have their own license information, described below.
 
 ## Runtime and development dependencies
 

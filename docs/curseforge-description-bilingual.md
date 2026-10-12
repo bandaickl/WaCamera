@@ -2,7 +2,7 @@
 
 WaCamera records your Minecraft world directly to MP4 from an independent camera while you keep playing in first person. Build, move, and interact normally: your hands and HUD stay on your screen, while the recording can include your own character.
 
-Inspired by Camera Studio, WaCamera focuses on placing cameras and recording, without a complex timeline. **1.0 is the first stable release.**
+WaCamera focuses on placing cameras and recording, without a complex timeline. **1.0 is the first stable release.**
 
 ## Requirements
 
@@ -51,7 +51,7 @@ Only loaded terrain can be filmed. Rendering two views increases GPU load, inclu
 
 WaCameraは、**一人称でMinecraftを操作しながら、独立したカメラの映像をMP4へ保存するMOD**です。建築・移動・ブロック操作を続けられ、操作画面には手やHUDを表示したまま、動画には自分のキャラクターも映せます。
 
-Camera Studioのように、地点を決めて気軽に撮る使い方を目指しています。複雑な編集タイムラインはありません。**1.0は最初の正式版**で、alpha.7までに開発した機能を引き継ぎます。
+地点を決めて気軽に撮る使い方を目指しています。複雑な編集タイムラインはありません。**1.0は最初の正式版**で、alpha.7までに開発した機能を引き継ぎます。
 
 ## 必要な環境
 

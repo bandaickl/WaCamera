@@ -2,7 +2,7 @@
 
 WaCamera records your Minecraft world directly to MP4 from an independent camera while you keep playing in first person. Build, move, and interact normally: your hands and HUD stay on your screen, while the recording can include your own character.
 
-Inspired by Camera Studio, WaCamera focuses on placing cameras and recording, without a complex timeline. **1.0 is the first stable release.**
+WaCamera focuses on placing cameras and recording, without a complex timeline. **1.0 is the first stable release.**
 
 ## Requirements
 

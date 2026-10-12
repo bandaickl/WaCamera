@@ -14,9 +14,7 @@ alpha.6の追加：カウントダウン・別視点録画中に、操作側だ�
 
 必須要件はForge 1.20.1 / NeoForge 1.21.1、座標指定、自分を映す、動画まで保存する、細かな編集を要求しないこと、および**一人称で通常プレイしながら別視点を裏で録画すること**。最後の要件を初案で任意機能に回したのは誤りであり、本版で修正する。
 
-Camera Studioの公式告知は、カメラとVIDEO RECORDERを一体化したMODとして掲載されている。ここから操作の発想を参考にし、旧MODの移植やコード流用は前提にしない。[Camera Studioの作者告知](https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1280280-camera-studio-v2-18-standalone-modloader-forge)
-
-Flashbackはゲームプレイを記録して再生・撮影するMODとして公開されている。本案は、事前に構図を決めたリアルタイムの映像を保存する。**撮影後に別角度で撮り直すことはできない。** その代わり、リプレイ一覧、時間軸エディター、キーフレーム編集画面を経由せずに動画ができる。[Flashback公式リポジトリ](https://github.com/Moulberry/Flashback)
+本MODは、事前に構図を決めたリアルタイムの映像を保存する。**撮影後に別角度で撮り直すことはできない。** リプレイ一覧、時間軸エディター、キーフレーム編集画面を経由せずに動画ができる。
 
 ## 2. 判断の前提
 
