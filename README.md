@@ -4,9 +4,9 @@ Record yourself from an independent camera directly to MP4 while you keep playin
 
 **[Download WaCamera / ダウンロード](https://github.com/bandaickl/WaCamera/releases/latest)** · [日本語の操作説明](docs/usage-ja.md) · [Report an issue / 不具合報告](https://github.com/bandaickl/WaCamera/issues)
 
-**一人称で普段どおり遊びながら、別のカメラで自分も映る動画を撮るMOD**です。操作画面の手・照準・HUDを維持し、撮影カメラの映像をMP4へ直接保存します。**現在のソース／ローカルビルドの対象は1.0.1、GitHubの公開Releaseは1.0です。** 上のダウンロードリンクは公開Releaseを開きます。1.0.1のReleaseはまだ公開していません。サーバーへの導入は不要です。
+**一人称で普段どおり遊びながら、別のカメラで自分も映る動画を撮るMOD**です。操作画面の手・照準・HUDを維持し、撮影カメラの映像をMP4へ直接保存します。**現在のソース／ローカルビルドの対象は1.0.2、GitHubの公開Releaseは1.0です。** 上のダウンロードリンクは公開Releaseを開きます。1.0.2のReleaseはまだ公開していません。サーバーへの導入は不要です。
 
-The source and local build target is **1.0.1**; the published GitHub release is still **1.0**. The download link above opens that published release.
+The source and local build target is **1.0.2**; the published GitHub release is still **1.0**. The download link above opens that published release. Version 1.0.2 lets you delete selected interrupted-recording recovery data after confirmation on both loaders.
 
 ## 対応環境
 
@@ -25,7 +25,7 @@ The source and local build target is **1.0.1**; the published GitHub release is 
 - **1〜120倍のタイムラプス**：小数の倍率にも対応。24fps・10倍なら実時間1秒に2.4枚を撮影し、倍速のMP4を保存します。1倍を超える録画は無音です。
 - **カメラの目印**：操作画面に位置・方向・画角を表示します。動画には入らず、F1で非表示にできます。
 - **別ウィンドウ操作中も録画**：フォーカス喪失による自動一時停止を録画中だけ抑え、終了後は通常の設定へ戻します。
-- **ゲーム音と回復機能**：等倍ではMinecraftの再生音を収録できます。保存が中断された録画は「回復」から確認できます。
+- **ゲーム音と回復機能**：等倍ではMinecraftの再生音を収録できます。保存が中断された録画は「回復」から確認でき、不要な回復データを選んで確認後に削除できます。
 
 ## 最初の撮影
 
@@ -61,13 +61,15 @@ Windows用の音声ヘルパーはJARに同梱しています。等倍でゲー�
 
 「ショット」の秒数は実際に撮影する時間です。600秒・10倍なら動画は約60秒になります。ゲームの速さは変えず、録画用カメラの描画・画像取得・エンコードの頻度を減らします。圧縮結果は映像に依存するため、容量が厳密に10分の1になるとは限りません。
 
+1.0.2では、**K → 回復 → 対象を選択 → この回復データを削除 → 確認**で、不要な中断録画の回復データを完全に削除できます。選んだ録画の映像断片・音声・失敗した回復処理の一時データなどが対象です。削除後はそのデータから回復できません。完成MP4、カメラパターン、保存済みショット設定は削除しません。使用中のデータは削除を拒否し、失敗時は理由を表示して再試行できます。自動削除・一括削除はありません。[回復と削除の手順](docs/usage-ja.md#保存に失敗した場合)
+
 ## シェーダー対応と制限
 
 Forgeのシェーダー録画は、**Embeddium 0.3.31＋Oculus 1.8.0＋Complementary Unbound r5.6**で確認しています。Distant Horizons 2.3.4-bを含む構成での過去の試験も、制限とあわせて[検証記録](docs/testing-ja.md)に記載しています。これらは通常録画の必須MODではありません。
 
 **1.0.1でNeoForge版にも独立したシェーダー録画処理を移植しました。** 対象はMinecraft 1.21.1用の **Iris 1.8.12＋Sodium 0.6.13**です。実JARのAPIとソースを照合しましたが、利用者の希望により、今回Minecraftの起動・自動テスト・実録画は行っていません。NeoForgeでの描画結果・性能は未検証です。**NeoForgeのシェーダー有効＋Distant Horizons併用は未対応で、録画開始時に理由を表示します。** Iris・Sodiumはシェーダー利用時の追加構成であり、シェーダーなしの通常録画には不要です。
 
-Forgeの機能は1.0から変更していません。両版とも未検証のMOD・シェーダーの組み合わせまで動作を保証しません。
+1.0.2の回復データ削除は両版に追加しています。シェーダーの対応範囲は1.0.1から変更していません。両版とも未検証のMOD・シェーダーの組み合わせまで動作を保証しません。
 
 - 撮影できるのは読み込み済みの地形です。カメラだけを遠くへ動かしても、未受信のチャンクは撮影できません。
 - 二つの視点を描画するため、通常プレイよりGPU負荷が増えます。バックグラウンドでも負荷は続き、ドライバーや他MODの制限でfpsが下がる場合があります。
@@ -75,7 +77,7 @@ Forgeの機能は1.0から変更していません。両版とも未検証のMOD
 - 通常のシングルプレイではEscのポーズも停止対象です。マルチプレイやLAN公開中のEsc画面では、ゲームが停止しなければ録画を継続します。
 - 完成動画を直接保存する方式です。リプレイ機能や撮影後の視点変更、障害物の自動回避はありません。
 
-1.0.1の変更点と確認範囲は[変更履歴](docs/release-1.0.1-changelog.md)と[検証記録](docs/testing-ja.md)を参照してください。[1.0の変更履歴](docs/release-1.0-changelog.md)とalpha版の試験記録は、当時の記録として残しています。
+1.0.2の変更点は[変更履歴](docs/release-1.0.2-changelog.md)、確認範囲は[検証記録](docs/testing-ja.md)を参照してください。[1.0.1の変更履歴](docs/release-1.0.1-changelog.md)・[1.0の変更履歴](docs/release-1.0-changelog.md)とalpha版の試験記録は、当時の記録として残しています。
 
 ## ビルド
 
@@ -86,7 +88,7 @@ JDKの場所は `JAVA17_HOME` と `JAVA21_HOME` で指定できます。
 ./scripts/build.ps1
 ```
 
-公開用ファイルを`dist/1.0.1/`へまとめる場合は`./scripts/build.ps1 -Release`を使います。Minecraftを起動せず、既存の音声ヘルパーを利用し、テストを実行しないビルドは`./scripts/build.ps1 -Release -SkipNative -SkipTests`です。
+公開用ファイルを`dist/1.0.2/`へまとめる場合は`./scripts/build.ps1 -Release`を使います。Minecraftを起動せず、既存の音声ヘルパーを利用し、テストを実行しないビルドは`./scripts/build.ps1 -Release -SkipNative -SkipTests`です。
 
 完成JARは `dist/` にコピーされます。共通処理のテストだけなら `./gradlew.bat test`。
 通常のテストでは音を再生しません。FFmpeg統合テストは `WACAMERA_TEST_FFMPEG`、Windows音声ヘルパーは `WACAMERA_TEST_AUDIO_HELPER` にパスを設定すると有効になります。

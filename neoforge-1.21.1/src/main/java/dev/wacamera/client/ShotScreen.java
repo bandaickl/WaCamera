@@ -30,6 +30,8 @@ public final class ShotScreen extends Screen {
     private String message = "";
     private boolean installing;
     private boolean scanningRecovery;
+    private boolean confirmingRecovery, rescanRecovery;
+    private boolean recoveryWasBusy = WaCameraClient.busy();
     private int recoveryIndex;
     private List<RecordingRecovery.RecoverySession> recoveries = List.of();
     private record Label(String key, int x, int y, int width) { }
@@ -236,53 +238,133 @@ public final class ShotScreen extends Screen {
         }, Component.translatable(titleKey), question));
     }
 
-    private void recoveryPage(int x, int w) {
+    private RecordingRecovery.RecoverySession selectedRecovery() {
         recoveryIndex = Math.min(recoveryIndex, Math.max(0, recoveries.size() - 1));
-        var selectedSession = recoveries.isEmpty() ? null : recoveries.get(recoveryIndex);
-        buttonText("<", x, 55, 26, () -> { if (!recoveries.isEmpty()) { recoveryIndex = Math.floorMod(recoveryIndex - 1, recoveries.size()); init(); } });
-        String title = selectedSession == null ? Component.translatable("wacamera.recovery_none").getString() : selectedSession.directory().getFileName().toString();
-        buttonText(title, x + 30, 55, w - 60, () -> { });
-        buttonText(">", x + w - 26, 55, 26, () -> { if (!recoveries.isEmpty()) { recoveryIndex = (recoveryIndex + 1) % recoveries.size(); init(); } });
-        Button refresh = button("wacamera.recovery_scan", x, 83, w, this::scanRecovery);
-        refresh.active = !scanningRecovery;
-        Button normal = button("wacamera.recover", x, 114, (w - 6) / 2, () -> recover(false));
-        Button silent = button("wacamera.recover_silent", x + (w + 6) / 2, 114, (w - 6) / 2, () -> recover(true));
-        normal.active = silent.active = selectedSession != null && !selectedSession.active() && !WaCameraClient.busy();
-        if (selectedSession != null) {
-            String details = selectedSession.status() + " / " + Component.translatable("wacamera.audio." + selectedSession.audioRequested()).getString();
-            if (selectedSession.audioRequested() && !selectedSession.audioFilesPresent()) details += " / " + Component.translatable("wacamera.recovery_audio_missing").getString();
-            if (selectedSession.active()) details += " / " + Component.translatable("wacamera.recovery_active").getString();
-            buttonText(details, x, 144, w, () -> { }).active = false;
+        return recoveries.isEmpty() ? null : recoveries.get(recoveryIndex);
+    }
+
+    private boolean recoveryActionAllowed() {
+        var session = selectedRecovery();
+        return session != null && !session.active() && !scanningRecovery
+                && !confirmingRecovery && !WaCameraClient.busy();
+    }
+
+    private void recoveryPage(int x, int w) {
+        var session = selectedRecovery();
+        boolean selectable = !scanningRecovery && !confirmingRecovery && !WaCameraClient.busy();
+        buttonText("<", x, 55, 26, () -> selectRecovery(-1)).active = selectable && recoveries.size() > 1;
+        String title = session == null ? Component.translatable("wacamera.recovery_none").getString()
+                : session.directory().getFileName().toString();
+        buttonText(title, x + 30, 55, w - 60, () -> { }).active = false;
+        buttonText(">", x + w - 26, 55, 26, () -> selectRecovery(1)).active = selectable && recoveries.size() > 1;
+        button("wacamera.recovery_scan", x, 83, w, this::scanRecovery).active = selectable;
+        Button normal = button("wacamera.recover", x, 110, (w - 6) / 2, () -> recover(false));
+        Button silent = button("wacamera.recover_silent", x + (w + 6) / 2, 110, (w - 6) / 2, () -> recover(true));
+        Button delete = button("wacamera.recovery_delete", x, 137, w, this::confirmDeleteRecovery);
+        // Corrupt metadata or absent media must not prevent an explicit deletion.
+        normal.active = silent.active = delete.active = recoveryActionAllowed();
+        if (session != null) {
+            String details = session.status() + " / " + Component.translatable("wacamera.audio." + session.audioRequested()).getString();
+            if (session.audioRequested() && !session.audioFilesPresent()) details += " / " + Component.translatable("wacamera.recovery_audio_missing").getString();
+            if (session.active()) details += " / " + Component.translatable("wacamera.recovery_active").getString();
+            Button detail = buttonText(details, x, 164, w, () -> { });
+            detail.active = false;
+            if (session.error() != null && !session.error().isBlank())
+                detail.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.literal(session.error())));
         }
     }
 
-    private void scanRecovery() {
-        if (scanningRecovery) return;
-        scanningRecovery = true;
-        message = Component.translatable("wacamera.recovery_scanning").getString();
+    private void selectRecovery(int delta) {
+        if (scanningRecovery || confirmingRecovery || WaCameraClient.busy() || recoveries.isEmpty()) return;
+        recoveryIndex = Math.floorMod(recoveryIndex + delta, recoveries.size());
         init();
+    }
+
+    private void scanRecovery() { scanRecovery(false); }
+
+    private void scanRecovery(boolean preserveMessage) {
+        if (confirmingRecovery) return;
+        if (scanningRecovery) { rescanRecovery = true; return; }
+        var selectedSession = selectedRecovery();
+        java.nio.file.Path selectedDirectory = selectedSession == null ? null : selectedSession.directory();
+        java.nio.file.Path outputDirectory = WaCameraClient.root().resolve("recordings");
+        scanningRecovery = true;
+        String scanningMessage = Component.translatable("wacamera.recovery_scanning").getString();
+        if (!preserveMessage) message = scanningMessage;
+        if (net.minecraft.client.Minecraft.getInstance().screen == this && page == 4) init();
         java.util.concurrent.CompletableFuture.supplyAsync(() -> {
-            try { return RecordingRecovery.listRecoverySessions(WaCameraClient.root().resolve("recordings")); }
+            try { return RecordingRecovery.listRecoverySessions(outputDirectory); }
             catch (Exception e) { throw new java.util.concurrent.CompletionException(e); }
         }).whenComplete((result, error) -> net.minecraft.client.Minecraft.getInstance().execute(() -> {
             scanningRecovery = false;
-            if (error != null) { WaCameraClient.error(error); message = WaCameraClient.status(); }
-            else { recoveries = result; message = ""; }
-            if (net.minecraft.client.Minecraft.getInstance().screen == this && page == 4) init();
+            if (error != null) {
+                WaCameraClient.error(error);
+                message = preserveMessage && !message.isBlank() ? message + " / " + WaCameraClient.status()
+                        : WaCameraClient.status();
+            } else {
+                recoveries = result;
+                if (selectedDirectory != null)
+                    for (int i = 0; i < recoveries.size(); i++)
+                        if (recoveries.get(i).directory().equals(selectedDirectory)) { recoveryIndex = i; break; }
+                selectedRecovery();
+                if (!preserveMessage && message.equals(scanningMessage)) message = "";
+            }
+            if (rescanRecovery) {
+                rescanRecovery = false;
+                scanRecovery(true);
+            } else if (net.minecraft.client.Minecraft.getInstance().screen == this && page == 4) init();
         }));
     }
 
     private void recover(boolean silent) {
-        if (recoveries.isEmpty() || WaCameraClient.busy()) return;
-        var session = recoveries.get(recoveryIndex);
-        if (session.active()) return;
+        if (!recoveryActionAllowed()) return;
+        java.nio.file.Path session = selectedRecovery().directory();
         message = Component.translatable("wacamera.saving").getString();
-        WaCameraClient.recover(session.directory(), silent).whenComplete((path, error) -> net.minecraft.client.Minecraft.getInstance().execute(() -> {
-            if (error != null) { WaCameraClient.error(error); message = WaCameraClient.status(); }
-            else message = Component.translatable("wacamera.saved", path.getFileName().toString()).getString();
-            if (net.minecraft.client.Minecraft.getInstance().screen == this && page == 4) scanRecovery();
-        }));
+        WaCameraClient.recover(session, silent).whenComplete((path, error) ->
+                net.minecraft.client.Minecraft.getInstance().execute(this::recoveryOperationFinished));
         init();
+    }
+
+    private void confirmDeleteRecovery() {
+        if (!recoveryActionAllowed()) return;
+        // Capture the exact path now; never resolve a mutable list index from the confirmation callback.
+        java.nio.file.Path session = selectedRecovery().directory();
+        confirmingRecovery = true;
+        var mc = net.minecraft.client.Minecraft.getInstance();
+        mc.setScreen(new ConfirmScreen(accepted -> {
+            if (!confirmingRecovery) return;
+            confirmingRecovery = false;
+            mc.setScreen(this);
+            if (accepted) guarded(() -> deleteRecovery(session));
+        }, Component.translatable("wacamera.recovery_delete_title"),
+                Component.translatable("wacamera.recovery_delete_confirm", session.getFileName().toString()),
+                Component.translatable("wacamera.recovery_delete_accept"), Component.translatable("gui.cancel")));
+    }
+
+    private void deleteRecovery(java.nio.file.Path session) {
+        // Another operation could have started while the confirmation was open.
+        if (WaCameraClient.busy()) throw new IllegalStateException(Component.translatable("wacamera.error.busy").getString());
+        message = Component.translatable("wacamera.recovery_deleting").getString();
+        WaCameraClient.deleteRecovery(session).whenComplete((ignored, error) ->
+                net.minecraft.client.Minecraft.getInstance().execute(this::recoveryOperationFinished));
+        init();
+    }
+
+    private void recoveryOperationFinished() {
+        // The client completes its UI future only after returning to IDLE and publishing the result.
+        recoveryWasBusy = WaCameraClient.busy();
+        message = WaCameraClient.status();
+        if (net.minecraft.client.Minecraft.getInstance().screen == this && page == 4) scanRecovery(true);
+    }
+
+    @Override public void tick() {
+        super.tick();
+        boolean busy = WaCameraClient.busy();
+        if (page == 4 && recoveryWasBusy != busy) {
+            recoveryWasBusy = busy;
+            if (busy) init();
+            else scanRecovery(true); // Also refresh a newly opened panel after an older panel's operation.
+        } else recoveryWasBusy = busy;
     }
 
     private EditBox field(String key, String value, int x, int y, int w) {

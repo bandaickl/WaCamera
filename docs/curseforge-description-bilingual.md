@@ -2,7 +2,7 @@
 
 WaCamera records your Minecraft world directly to MP4 from an independent camera while you keep playing in first person. Build, move, and interact normally: your hands and HUD stay on your screen, while the recording can include your own character.
 
-WaCamera focuses on placing cameras and recording, without a complex timeline. **The 1.0.1 source update adds a NeoForge shader-recording implementation.** Forge features are unchanged from 1.0. The published GitHub release is still 1.0; a 1.0.1 release has not been published.
+WaCamera focuses on placing cameras and recording, without a complex timeline. **The 1.0.2 source update lets you delete selected interrupted-recording recovery data after confirmation on both loaders.** It also includes the NeoForge shader-recording implementation added in 1.0.1. The published GitHub release is still 1.0; a 1.0.2 release has not been published.
 
 ## Requirements
 
@@ -37,13 +37,19 @@ Set **Playback speed** from **1–120×**, including decimals. At 24fps and 10×
 
 Files live under your game folder: videos in `wacamera/recordings/`, slots in `wacamera/patterns/`, and **Shot → Save shot** presets in `wacamera/shots/`.
 
+## Manage interrupted recordings
+
+Press **K → Recovery** to select an interrupted recording and try recovering it. In 1.0.2, you can select unwanted recovery data, press **Delete this recovery data**, then confirm with **Permanently delete**. This removes the selected recording's video fragments, audio, metadata, logs, and temporary files from failed recovery attempts. Deletion cannot be undone, and the deleted data can no longer be used for recovery.
+
+Completed MP4 files, other recovery entries, camera patterns, and saved shots are kept. Data in use cannot be deleted. If deletion fails, the error is shown so you can resolve the cause and retry. There is no automatic or bulk deletion.
+
 ## Compatibility and limits
 
 Camera markers appear only in your play view, never in the video. Recording continues when switching windows. An actual game pause or leaving the world ends recording; non-pausing chat and inventory screens do not.
 
 Forge shader recording was tested in earlier releases with **Embeddium 0.3.31, Oculus 1.8.0, and Complementary Unbound r5.6**. Other combinations are not guaranteed.
 
-**1.0.1 ports independent shader recording to NeoForge**, targeting **Iris 1.8.12 and Sodium 0.6.13 for Minecraft 1.21.1**. The actual JAR APIs were checked against source code. At the user's request, this update has not been tested by launching Minecraft, running automated tests, or recording video. NeoForge rendering results and performance remain unverified. **Active shaders together with Distant Horizons are unsupported on NeoForge and recording is refused with an explanation.** Iris and Sodium are needed only when using this shader integration; neither is required for ordinary recording without shaders.
+**1.0.1 ports independent shader recording to NeoForge**, targeting **Iris 1.8.12 and Sodium 0.6.13 for Minecraft 1.21.1**. This scope is unchanged in 1.0.2. The actual JAR APIs were checked against source code. At the user's request, no Minecraft launch, automated tests, or actual recording were performed for 1.0.1 or this 1.0.2 update. NeoForge rendering results and performance remain unverified. **Active shaders together with Distant Horizons are unsupported on NeoForge and recording is refused with an explanation.** Iris and Sodium are needed only when using this shader integration; neither is required for ordinary recording without shaders.
 
 Only loaded terrain can be filmed. Rendering two views increases GPU load, including in the background. WaCamera records finished video; it does not provide replays or let you change the viewpoint afterward.
 
@@ -53,7 +59,7 @@ Only loaded terrain can be filmed. Rendering two views increases GPU load, inclu
 
 WaCameraは、**一人称でMinecraftを操作しながら、独立したカメラの映像をMP4へ保存するMOD**です。建築・移動・ブロック操作を続けられ、操作画面には手やHUDを表示したまま、動画には自分のキャラクターも映せます。
 
-地点を決めて気軽に撮る使い方を目指しています。複雑な編集タイムラインはありません。**1.0.1のソース更新でNeoForgeのシェーダー録画処理を追加しました。** Forgeの機能は1.0から変更していません。GitHubの公開Releaseは1.0で、1.0.1のReleaseはまだ公開していません。
+地点を決めて気軽に撮る使い方を目指しています。複雑な編集タイムラインはありません。**1.0.2のソース更新で、選択した中断録画の回復データを確認後に削除する機能を両版へ追加しました。** 1.0.1で追加したNeoForgeのシェーダー録画処理も含みます。GitHubの公開Releaseは1.0で、1.0.2のReleaseはまだ公開していません。
 
 ## 必要な環境
 
@@ -88,12 +94,18 @@ WaCameraは、**一人称でMinecraftを操作しながら、独立したカメ�
 
 ゲームフォルダー内の`wacamera/recordings/`に動画、`wacamera/patterns/`にパターンを保存します。**「ショット」→「設定を保存」**による名前付きの保存先は`wacamera/shots/`です。
 
+## 中断録画の回復データを整理する
+
+**K →「回復」**で中断した録画を選ぶと、回復を試せます。1.0.2では、不要な対象を選び、**「この回復データを削除」→ 確認画面の「完全に削除」**で削除できます。選んだ録画の映像断片・音声・時刻情報・ログと、失敗した回復処理の一時データを削除します。削除は取り消せず、そのデータから回復できなくなります。
+
+完成MP4、他の回復データ、カメラパターン、保存済みショット設定は残します。使用中のデータは削除できません。失敗時は理由を表示し、原因を解消して再試行できます。自動削除・一括削除はありません。
+
 ## 対応範囲と制限
 
 カメラの位置・方向・画角の目印は操作画面だけに表示し、動画には入りません。別ウィンドウへ切り替えても録画を継続します。ゲームが実際に一時停止した場合やワールド退出時には終了・保存し、ゲームを止めないチャットやインベントリー画面では継続します。
 
 Forgeのシェーダー録画は、過去の版で**Embeddium 0.3.31＋Oculus 1.8.0＋Complementary Unbound r5.6**を使って確認しています。他の組み合わせまで保証するものではありません。
 
-**1.0.1でNeoForgeにも独立したシェーダー録画処理を移植しました。** 対象はMinecraft 1.21.1用の**Iris 1.8.12＋Sodium 0.6.13**です。実JARのAPIとソースを照合しましたが、利用者の希望により、今回Minecraftの起動・自動テスト・実録画は行っていません。NeoForgeの描画結果・性能は未検証です。**NeoForgeのシェーダー有効＋Distant Horizons併用は未対応で、理由を表示して録画開始を拒否します。** Iris・Sodiumはこのシェーダー連携を使う場合だけ必要で、シェーダーなしの通常録画には不要です。
+**1.0.1でNeoForgeにも独立したシェーダー録画処理を移植しました。** 対象はMinecraft 1.21.1用の**Iris 1.8.12＋Sodium 0.6.13**で、1.0.2でも対応範囲は変わりません。実JARのAPIとソースを照合しましたが、利用者の希望により、1.0.1と今回の1.0.2ではMinecraftの起動・自動テスト・実録画は行っていません。NeoForgeの描画結果・性能は未検証です。**NeoForgeのシェーダー有効＋Distant Horizons併用は未対応で、理由を表示して録画開始を拒否します。** Iris・Sodiumはこのシェーダー連携を使う場合だけ必要で、シェーダーなしの通常録画には不要です。
 
 撮影できるのは読み込み済みの地形です。二つの視点を描くため、バックグラウンド録画中もGPU負荷が増えます。完成動画を直接保存する方式なので、リプレイ機能や撮影後の視点変更はありません。

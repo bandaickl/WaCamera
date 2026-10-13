@@ -48,6 +48,7 @@ public final class WaCameraClient {
     private static CompletableFuture<FfmpegRecorder> preparation;
     private static volatile boolean shuttingDown;
     private static boolean recoveryScanStarted;
+    private static boolean deletingRecovery;
 
     private WaCameraClient() { }
     public static Path root() { return Minecraft.getInstance().gameDirectory.toPath().resolve("wacamera"); }
@@ -105,13 +106,56 @@ public final class WaCameraClient {
         if (busy()) throw new IllegalStateException(Component.translatable("wacamera.error.busy").getString());
         Path ffmpeg = Path.of(settings().ffmpeg);
         state = State.FINALIZING;
-        finalization = silent ? RecordingRecovery.recoverSilentFromSession(session, ffmpeg) : RecordingRecovery.recoverFromSession(session, ffmpeg);
-        finalization.whenComplete((path, failure) -> Minecraft.getInstance().execute(() -> {
+        try {
+            return finishRecoveryOperation(silent ? RecordingRecovery.recoverSilentFromSession(session, ffmpeg)
+                    : RecordingRecovery.recoverFromSession(session, ffmpeg), null);
+        } catch (RuntimeException failure) {
             state = State.IDLE;
-            if (failure != null) error(failure);
-            else { lastVideo = path; notice(Component.translatable("wacamera.saved", path.getFileName().toString()).getString()); }
+            throw failure;
+        }
+    }
+
+    /** Explicit, single-session deletion. The worker validates its location and acquires the session lock. */
+    public static CompletableFuture<Void> deleteRecovery(Path session) {
+        if (busy()) throw new IllegalStateException(Component.translatable("wacamera.error.busy").getString());
+        String sessionName = session.getFileName().toString();
+        state = State.FINALIZING;
+        deletingRecovery = true;
+        notice(Component.translatable("wacamera.recovery_deleting").getString());
+        try {
+            return finishRecoveryOperation(RecordingRecovery.deleteSession(root().resolve("recordings"), session)
+                    .thenApply(ignored -> (Path) null), sessionName).thenApply(ignored -> null);
+        } catch (RuntimeException failure) {
+            deletingRecovery = false;
+            state = State.IDLE;
+            throw failure;
+        }
+    }
+
+    private static CompletableFuture<Path> finishRecoveryOperation(CompletableFuture<Path> worker, String deletedName) {
+        // Shutdown waits for the worker, not a callback queued onto the Minecraft thread it is blocking.
+        finalization = worker;
+        CompletableFuture<Path> completedOnClient = new CompletableFuture<>();
+        worker.whenComplete((path, failure) -> Minecraft.getInstance().execute(() -> {
+            deletingRecovery = false;
+            state = State.IDLE;
+            if (failure != null) {
+                error(failure);
+                if (deletedName != null)
+                    notice(Component.translatable("wacamera.recovery_delete_failed", status()).getString());
+                completedOnClient.completeExceptionally(failure);
+            } else {
+                if (deletedName != null)
+                    notice(Component.translatable("wacamera.recovery_deleted", deletedName).getString());
+                else {
+                    lastVideo = path;
+                    notice(Component.translatable("wacamera.saved", path.getFileName().toString()).getString());
+                }
+                // UI scans only start after the busy state and the result message have been updated.
+                completedOnClient.complete(path);
+            }
         }));
-        return finalization;
+        return completedOnClient;
     }
 
     public static ShotDefinition edited() {
@@ -406,7 +450,7 @@ public final class WaCameraClient {
             case COUNTDOWN -> Component.translatable("wacamera.countdown", Math.max(1, (countdownEnd - System.nanoTime() + 999_999_999L) / 1_000_000_000L)).getString();
             case RECORDING -> "REC " + String.format(Locale.ROOT, "%.1f / %.1f s", recorder == null ? 0 : recorder.elapsedSeconds(), shot.durationSeconds()) + "  [F8]";
             case PREVIEW -> Component.translatable("wacamera.preview").getString() + "  [F8]";
-            case FINALIZING -> Component.translatable("wacamera.saving").getString();
+            case FINALIZING -> Component.translatable(deletingRecovery ? "wacamera.recovery_deleting" : "wacamera.saving").getString();
             default -> System.nanoTime() < noticeUntil ? status : "";
         };
         if (line.isEmpty()) return;

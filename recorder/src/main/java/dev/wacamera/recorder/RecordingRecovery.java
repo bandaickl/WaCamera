@@ -4,22 +4,35 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 
 import java.io.IOException;
+import java.io.Reader;
+import java.nio.channels.Channels;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
-/** Explicit recovery of interrupted local sessions. Original media is always retained. */
+/** Explicit recovery preserves source media; deletion requires a separate, explicitly selected action. */
 public final class RecordingRecovery {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private RecordingRecovery() {}
@@ -30,11 +43,17 @@ public final class RecordingRecovery {
     /** Lists unfinished sessions. Does not launch any encoder or modify their metadata. */
     public static List<RecoverySession> listRecoverySessions(Path outputDirectory) throws IOException {
         Path root = outputDirectory.toAbsolutePath().normalize().resolve(".wacamera-recovery");
-        if (!Files.isDirectory(root)) return List.of();
+        // Listing/recovery retain support for launcher/output ancestors reached through links.
+        // Keep the original paths in the UI so deletion can apply its own stricter boundary check.
+        try { SessionLock.validateDirectory(root.toRealPath()); }
+        catch (NoSuchFileException missing) { return List.of(); }
         List<RecoverySession> sessions = new ArrayList<>();
         try (Stream<Path> entries = Files.list(root)) {
             for (Path directory : entries.sorted(Comparator.reverseOrder()).toList()) {
-                if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) continue;
+                BasicFileAttributes attributes;
+                try { attributes = Files.readAttributes(directory, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS); }
+                catch (NoSuchFileException alreadyDeleted) { continue; }
+                if (!attributes.isDirectory() || attributes.isSymbolicLink() || attributes.isOther()) continue;
                 String status = "unknown", error = null;
                 boolean requested = false;
                 try {
@@ -63,6 +82,98 @@ public final class RecordingRecovery {
         return recoverAsync(session, ffmpeg, true);
     }
 
+    /**
+     * Explicitly discards one unfinished direct child of outputDirectory/.wacamera-recovery.
+     * Does not inspect output/recoveredOutput paths or launch FFmpeg. Missing or malformed
+     * metadata/video is allowed. A completed/recovered or currently locked session is refused.
+     * Deletion can be partial on an I/O failure; its remaining directory stays listed for retry.
+     */
+    public static CompletableFuture<Void> deleteSession(Path outputDirectory, Path session) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Thread worker = new Thread(() -> {
+            try {
+                delete(outputDirectory, session);
+                future.complete(null);
+            } catch (Exception e) { future.completeExceptionally(e); }
+        }, "WaCamera recording deletion");
+        worker.setDaemon(true);
+        worker.start();
+        return future;
+    }
+
+    private static void delete(Path outputDirectory, Path requested) throws IOException {
+        Path root = outputDirectory.toAbsolutePath().normalize().resolve(".wacamera-recovery");
+        Path session = requested.toAbsolutePath().normalize();
+        if (!root.equals(session.getParent()))
+            throw new IOException("Deletion is limited to a direct recovery session in the current output directory");
+        SessionLock.validateDirectory(root);
+        SessionLock.validateDirectory(session);
+        try (SessionLock lease = SessionLock.acquire(session)) {
+            rejectCompletedSession(session);
+            // Inspect the entire tree before removing anything. Do not use walkFileTree's
+            // symlink handling alone: Windows junctions can report isDirectory=true.
+            List<Path> entries = deletionEntries(session);
+            Path metadata = session.resolve("session.json"), lock = session.resolve("session.lock");
+            for (Path entry : entries) {
+                if (!entry.equals(session) && !entry.equals(metadata) && !entry.equals(lock)) deletePlainEntry(entry);
+            }
+            // Keep metadata until all media/attempt directories have gone, and retain the
+            // external lease after closing the inner lock for Windows file deletion.
+            lease.closeSessionFileForDeletion();
+            deletePlainEntry(lock);
+            deletePlainEntry(metadata);
+            deletePlainEntry(session);
+        }
+    }
+
+    private static void rejectCompletedSession(Path session) throws IOException {
+        JsonObject metadata;
+        try { metadata = readJson(session.resolve("session.json")); }
+        catch (NoSuchFileException | JsonParseException malformedOrMissing) { return; }
+        // Empty JSON and invalid status types are corrupt data, which may still be discarded.
+        if (metadata == null || !metadata.has("status") || !metadata.get("status").isJsonPrimitive()
+                || !metadata.getAsJsonPrimitive("status").isString()) return;
+        String status = metadata.get("status").getAsString().strip().toLowerCase(Locale.ROOT);
+        if (status.equals("complete") || status.startsWith("recovered"))
+            throw new IOException("Completed or recovered recording sessions cannot be deleted here");
+    }
+
+    private static List<Path> deletionEntries(Path session) throws IOException {
+        List<Path> entries = new ArrayList<>();
+        ArrayDeque<Path> pending = new ArrayDeque<>();
+        pending.add(session);
+        while (!pending.isEmpty()) {
+            Path entry = pending.removeLast();
+            if (!entry.startsWith(session)) throw new IOException("Recovery entry is outside the session");
+            SessionLock.validateDirectory(entry.getParent());
+            BasicFileAttributes attributes = plainAttributes(entry);
+            entries.add(entry);
+            if (attributes.isDirectory()) {
+                SessionLock.validateDirectory(entry);
+                try (DirectoryStream<Path> children = Files.newDirectoryStream(entry)) {
+                    for (Path child : children) pending.add(child);
+                }
+            }
+        }
+        entries.sort(Comparator.comparingInt(Path::getNameCount).reversed());
+        return entries;
+    }
+
+    private static BasicFileAttributes plainAttributes(Path entry) throws IOException {
+        BasicFileAttributes attributes = Files.readAttributes(entry, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        if (attributes.isSymbolicLink() || attributes.isOther()
+                || (!attributes.isDirectory() && !attributes.isRegularFile()))
+            throw new IOException("Linked or unsupported recovery entry: " + entry);
+        return attributes;
+    }
+
+    private static void deletePlainEntry(Path entry) throws IOException {
+        SessionLock.validateDirectory(entry.getParent());
+        try { plainAttributes(entry); }
+        catch (NoSuchFileException alreadyMissing) { return; }
+        Files.delete(entry);
+    }
+
     private static CompletableFuture<Path> recoverAsync(Path directory, Path configuredFfmpeg, boolean silent) {
         CompletableFuture<Path> future = new CompletableFuture<>();
         Thread worker = new Thread(() -> {
@@ -78,6 +189,11 @@ public final class RecordingRecovery {
         Path session = requested.toAbsolutePath().normalize();
         if (session.getParent() == null || !session.getParent().getFileName().toString().equals(".wacamera-recovery")
                 || Files.isSymbolicLink(session) || !Files.isDirectory(session)) throw new IOException("Not a WaCamera recovery session");
+        Path outputDirectory = session.getParent().getParent();
+        if (!plainAttributes(session).isDirectory()) throw new IOException("Not a WaCamera recovery session");
+        // Preserve the caller's output location even if a launcher/recovery ancestor is a
+        // junction, while reading metadata and locking use the canonical session directory.
+        session = session.toRealPath();
         try (SessionLock ignored = SessionLock.acquire(session)) {
             JsonObject metadata = readJson(session.resolve("session.json"));
             if (!metadata.has("schemaVersion") || metadata.get("schemaVersion").getAsInt() != 1) throw new IOException("Unsupported recovery metadata version");
@@ -102,7 +218,7 @@ public final class RecordingRecovery {
             ProcessTools.run(RecordingFinalizer.command(ffmpeg, session, candidate, video, audio),
                     attempt.resolve("finalize-stdout.log"), attempt.resolve("finalize-stderr.log"), Duration.ofMinutes(5));
             RecordingFinalizer.validate(ffprobe, candidate, attempt, video, audio != null);
-            Path output = session.getParent().getParent().resolve("WaCamera-recovered-" + session.getFileName() + "-" + id + (silent ? "-silent" : "") + ".mp4");
+            Path output = outputDirectory.resolve("WaCamera-recovered-" + session.getFileName() + "-" + id + (silent ? "-silent" : "") + ".mp4");
             try { Files.move(candidate, output, StandardCopyOption.ATOMIC_MOVE); }
             catch (AtomicMoveNotSupportedException e) { Files.move(candidate, output); }
             metadata.addProperty("status", silent ? "recovered-silent" : "recovered");
@@ -150,9 +266,26 @@ public final class RecordingRecovery {
     }
 
     private static JsonObject readJson(Path file) throws IOException {
-        if (Files.size(file) > 1_048_576) throw new IOException("Recovery metadata is too large: " + file);
-        JsonObject data = GSON.fromJson(Files.readString(file), JsonObject.class);
-        if (data == null) throw new IOException("Empty recovery metadata: " + file);
-        return data;
+        Path parent = SessionLock.validateDirectory(file.toAbsolutePath().normalize().getParent().toRealPath());
+        file = parent.resolve(file.getFileName());
+        if (!plainAttributes(file).isRegularFile()) throw new IOException("Not a regular recovery metadata file: " + file);
+        try (SeekableByteChannel channel = Files.newByteChannel(file, Set.of(StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS));
+             Reader reader = Channels.newReader(channel, StandardCharsets.UTF_8)) {
+            if (channel.size() > 1_048_576) throw new JsonParseException("Recovery metadata is too large: " + file);
+            StringBuilder text = new StringBuilder();
+            char[] buffer = new char[4096];
+            int count;
+            while ((count = reader.read(buffer)) != -1) {
+                if (text.length() + count > 1_048_576) throw new JsonParseException("Recovery metadata is too large: " + file);
+                text.append(buffer, 0, count);
+            }
+            // Parse after the I/O completes so file permission/read failures remain IOException,
+            // distinct from corrupt JSON which the explicit deletion action may discard.
+            JsonObject data = GSON.fromJson(text.toString(), JsonObject.class);
+            if (data == null) throw new JsonParseException("Empty recovery metadata: " + file);
+            return data;
+        } catch (CharacterCodingException invalidUtf8) {
+            throw new JsonParseException("Invalid UTF-8 recovery metadata: " + file, invalidUtf8);
+        }
     }
 }

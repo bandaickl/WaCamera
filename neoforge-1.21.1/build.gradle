@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.147'
 }
 group = 'dev.wacamera'
-version = '1.0.1'
+version = '1.0.2'
 base { archivesName = 'wacamera-neoforge-1.21.1' }
 java { toolchain.languageVersion = JavaLanguageVersion.of(21) }
 evaluationDependsOn(':core')

@@ -3,7 +3,7 @@ loaderVersion="[4,)"
 license="MIT"
 [[mods]]
 modId="wacamera"
-version="1.0.1"
+version="1.0.2"
 displayName="WaCamera"
 logoFile="assets/wacamera/icon.png"
 authors="WaCamera contributors"
