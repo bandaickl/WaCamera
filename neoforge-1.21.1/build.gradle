@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.147'
 }
 group = 'dev.wacamera'
-version = '1.0.2'
+version = '1.0.3'
 base { archivesName = 'wacamera-neoforge-1.21.1' }
 java { toolchain.languageVersion = JavaLanguageVersion.of(21) }
 evaluationDependsOn(':core')
@@ -41,14 +41,9 @@ dependencies {
     implementation project(':recorder')
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
-tasks.named('processResources') {
-    def audioBinary = file('../native-audio/windows/build/wacamera-audio.exe')
-    from(audioBinary) { into 'native/windows-x86_64' }
-    doFirst {
-        if (!audioBinary.isFile()) throw new GradleException('Build the Windows audio helper first: native-audio/windows/build.ps1')
-    }
-}
 tasks.named('jar', Jar) {
+    // Also exclude stale resources from builds made before 1.0.3.
+    exclude { entry -> entry.name.toLowerCase(java.util.Locale.ROOT) ==~ /.*\.(exe|dll|com|scr|so|dylib)/ }
     from('../LICENSE')
     from('../THIRD_PARTY.md')
     from project(':core').sourceSets.main.output

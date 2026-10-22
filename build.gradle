@@ -1,6 +1,6 @@
 plugins { id 'base' }
 allprojects {
     group = 'dev.wacamera'
-    version = '1.0.2'
+    version = '1.0.3'
     repositories { mavenCentral() }
 }

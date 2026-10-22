@@ -28,4 +28,8 @@ The selected distribution identifies its build as **GPLv3**, and its included LI
 
 ## Windows audio helper
 
-WaCamera's own process-audio helper is built from `native-audio/windows/` and included in the mod JAR as `native/windows-x86_64/wacamera-audio.exe`. It uses documented process-loopback APIs and the Microsoft C++ runtime linked by the build toolchain. Reference: [Microsoft application loopback](https://learn.microsoft.com/en-us/samples/microsoft/windows-classic-samples/applicationloopbackaudio-sample/).
+Starting with **1.0.3**, WaCamera's mod JARs do **not** include the process-audio helper executable. The mod does not extract, download or automatically update this helper. Its MIT-licensed source remains in [`native-audio/windows/`](native-audio/windows/README.md); building it is optional and separate from building the Java mod.
+
+New settings default to silent recording. To record game audio at 1× speed, users must separately prepare the helper and enter its absolute executable path in the recording settings. WaCamera then starts it as a separate process. Existing configured paths and helpers installed by older versions are retained. If game audio is enabled but the configured helper is missing or invalid, recording reports an error rather than silently dropping audio. Time-lapse above 1× remains silent.
+
+The helper uses documented process-loopback APIs and the Microsoft C++ runtime linked by the build toolchain. Reference: [Microsoft application loopback](https://learn.microsoft.com/en-us/samples/microsoft/windows-classic-samples/applicationloopbackaudio-sample/).

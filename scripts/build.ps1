@@ -1,10 +1,8 @@
 param([switch]$SkipNative, [switch]$SkipTests, [switch]$Release)
+# SkipNative is retained for compatibility. Native helpers are never built or packaged here.
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
 $env:GRADLE_USER_HOME = Join-Path $taskRoot '.gradle-home'
-if ($SkipTests -and !$SkipNative) {
-    throw 'Use -SkipTests -SkipNative together to reuse the existing audio helper without running its native tests.'
-}
 $versionMatch = [regex]::Match((Get-Content -LiteralPath (Join-Path $taskRoot 'build.gradle') -Raw), "(?m)^\s*version\s*=\s*'([A-Za-z0-9][A-Za-z0-9._-]*)'")
 if (!$versionMatch.Success) { throw 'Could not read the release version from build.gradle.' }
 $taskVersion = $versionMatch.Groups[1].Value
@@ -29,9 +27,37 @@ function Find-Jdk([int]$major) {
 }
 $jdk17 = Find-Jdk 17
 $jdk21 = Find-Jdk 21
+function Assert-NoNativeBinaries([string]$artifact) {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [System.IO.Compression.ZipFile]::OpenRead((Join-Path $taskRoot $artifact))
+    try {
+        foreach ($entry in $archive.Entries) {
+            if (!$entry.Name) { continue }
+            if ($entry.FullName -match '(?i)\.(exe|dll|com|scr|so|dylib)$') {
+                throw "Native binary found in ${artifact}: $($entry.FullName)"
+            }
+            # Check contents too, so a renamed executable cannot enter a release.
+            $stream = $entry.Open()
+            try {
+                $header = New-Object byte[] 4
+                $count = 0
+                while ($count -lt $header.Length) {
+                    $read = $stream.Read($header, $count, $header.Length - $count)
+                    if ($read -eq 0) { break }
+                    $count += $read
+                }
+                $magic = [BitConverter]::ToString($header)
+                if (($count -ge 2 -and $header[0] -eq 0x4D -and $header[1] -eq 0x5A) -or
+                    ($count -eq 4 -and $magic -in @('7F-45-4C-46', 'FE-ED-FA-CE', 'CE-FA-ED-FE', 'FE-ED-FA-CF', 'CF-FA-ED-FE'))) {
+                    throw "Native executable content found in ${artifact}: $($entry.FullName)"
+                }
+            } finally { $stream.Dispose() }
+        }
+    } finally { $archive.Dispose() }
+    Write-Host "Verified: no native executables in $artifact"
+}
 Push-Location $taskRoot
 try {
-    if (!$SkipNative) { & ./native-audio/windows/build.ps1 }
     $env:JAVA_HOME = $jdk17
     if (!$SkipTests) {
         & ./gradlew.bat test --console=plain
@@ -49,6 +75,7 @@ try {
     # Exact names prevent older builds or development jars from entering the release.
     $artifacts = @("forge-1.20.1/build/libs/wacamera-forge-1.20.1-$taskVersion.jar",
                    "neoforge-1.21.1/build/libs/wacamera-neoforge-1.21.1-$taskVersion.jar")
+    foreach ($artifact in $artifacts) { Assert-NoNativeBinaries $artifact }
     $copiedArtifacts = foreach ($artifact in $artifacts) {
         $destination = Join-Path $outputDirectory (Split-Path -Leaf $artifact)
         Copy-Item -LiteralPath $artifact -Destination $destination

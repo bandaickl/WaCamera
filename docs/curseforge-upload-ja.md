@@ -1,6 +1,6 @@
-# WaCamera 1.0.2 — CurseForgeへの登録
+# WaCamera 1.0.3 — CurseForgeへの登録
 
-1.0.2を今後登録する場合の準備資料です。今回の作業はGitHubのソース更新とローカル配布物の準備までです。CurseForgeへの公開や1.0.2のGitHub Release作成は行わず、GitHubの公開済みReleaseは1.0を維持します。ローカル配布物の準備先は`dist/1.0.2/`を予定しています。
+1.0.3を今後登録する場合の準備資料です。今回の作業はソース更新とローカル配布物の準備までです。CurseForgeへの公開や1.0.3のGitHub Release作成は行わず、GitHubの公開済みReleaseは音声ヘルパーを同梱した旧版の1.0を維持します。ビルドとJAR内容の確認を終え、ローカル配布物を`dist/1.0.3/`へ配置しました。
 
 ## プロジェクト情報
 
@@ -11,14 +11,14 @@
 - Logo：`wacamera-logo.png`（正方形PNG）
 - License：既存のMODメタデータと同じ`MIT License`
 
-一覧に表示される短い説明はSummary欄、操作方法を含む本文はDescription欄へ入れます。ロゴの最小サイズは400×400pxで、それより大きい正方形PNGはCurseForge側で縮小されます。[公式登録ガイド](https://support.curseforge.com/support/solutions/articles/9000199552-project-submission-guide-and-tips)
+一覧に表示される短い説明はSummary欄、操作方法を含む本文はDescription欄へ入れます。登録時はロゴと説明文を[公式登録ガイド](https://support.curseforge.com/support/solutions/articles/9000199552-project-submission-guide-and-tips)および下記の現行審査ポリシーに照らして確認してください。
 
 ## 2つのJARを別々のファイルとして登録
 
 | 項目 | Forge版 | NeoForge版 |
 | --- | --- | --- |
-| Upload file | `wacamera-forge-1.20.1-1.0.2.jar` | `wacamera-neoforge-1.21.1-1.0.2.jar` |
-| Display name | WaCamera 1.0.2 — Forge 1.20.1 | WaCamera 1.0.2 — NeoForge 1.21.1 |
+| Upload file | `wacamera-forge-1.20.1-1.0.3.jar` | `wacamera-neoforge-1.21.1-1.0.3.jar` |
+| Display name | WaCamera 1.0.3 — Forge 1.20.1 | WaCamera 1.0.3 — NeoForge 1.21.1 |
 | Game version | 1.20.1 | 1.21.1 |
 | Mod loader | Forge | NeoForge |
 | Java | 17 | 21 |
@@ -26,16 +26,20 @@
 | Release type | 公開時に選択 | 実録画未検証のためBetaを検討 |
 | 必要なローダー | Forge 47.4.10以上・48未満 | NeoForge 21.1.251以上・21.2未満 |
 
-Release Typeは実際に公開するときに選びます。JAR内のバージョンを1.0.2にしただけでは、このサーバー側の公開区分は設定されません。NeoForgeのシェーダー録画は引き続き実録画未検証なので、その状態を説明文へ明記し、公開区分はBetaも検討してください。[公式アップロード説明](https://support.curseforge.com/support/solutions/articles/9000197241-creating-and-submitting-a-project)
+Release Typeは実際に公開するときに選びます。JAR内のバージョンを1.0.3にしただけでは、このサーバー側の公開区分は設定されません。NeoForgeのシェーダー録画は引き続き実録画未検証なので、その状態を説明文へ明記し、公開区分はBetaも検討してください。[公式アップロード説明](https://support.curseforge.com/support/solutions/articles/9000197241-creating-and-submitting-a-project)
 
-Changelogには`release-1.0.2-changelog.md`の対応する言語の本文を使えます。公開時には確認済みのビルド結果を反映し、ビルド確認とゲーム内動作・実録画の検証を区別してください。配布準備用ZIPを使う場合も、展開した各JARを個別にアップロードします。ロゴ・説明文・ZIPそのものをMODのJARとしてアップロードしません。
+Changelogには`release-1.0.3-changelog.md`の対応する言語の本文を使えます。公開時には確認済みのビルド結果を反映し、ビルド確認とゲーム内動作・実録画の検証を区別してください。配布準備用ZIPを使う場合も、展開した各JARを個別にアップロードします。ロゴ・説明文・ZIPそのものをMODのJARとしてアップロードしません。
 
 クライアント側だけに導入します。Forge版とNeoForge版を同じインスタンスへ同時に入れないでください。ForgeのOculus・Embeddium、NeoForgeのIris・Sodiumはシェーダーを使う場合の追加構成であり、通常録画の必須MODではありません。1.0.1のNeoForge移植対象はMinecraft 1.21.1用Iris 1.8.12＋Sodium 0.6.13です。実JAR API・ソースは照合済みですが、ゲーム起動・テスト・実録画は未実施です。NeoForgeのシェーダー有効＋Distant Horizons併用は未対応として録画開始を拒否します。この確認範囲をDescriptionとChangelogに残してください。
 
-FFmpegはJARに同梱せず、初回の「FFmpegを準備」で取得する仕組みです。Windows用音声ヘルパーは同梱しています。録画環境と制限は紹介文に記載しています。
+FFmpeg・ffprobe・Windows音声ヘルパーEXEはJARに同梱しません。既存の「FFmpegを準備」は維持します。音声ヘルパーは自動取得せず、利用者が別途用意した実行ファイルの絶対パスを手動指定します。紹介文には新しいヘルパーEXEのダウンロードURLを設けず、必要な人向けにソースからのビルド手順を案内します。
+
+## 審査について
+
+1.0.3はEXE同梱の指摘に対応する修正であり、承認を保証しません。現行の[Project and Modpack Moderation Policies](https://support.curseforge.com/support/solutions/articles/9000197279-project-and-modpack-moderation-policies)はThird Party Downloadsで外部ファイルへのダウンロードリンクを認めないとしています。既存のFFmpeg取得機能と外部音声ヘルパーの手動指定がどう扱われるかは、審査側の判断が必要です。同梱解除だけでこれらも承認済みとは扱わず、必要に応じて提出時に説明してください。
 
 ## 今回の更新内容と確認範囲
 
-1.0.2では両版の「回復」に、選択した回復データを確認後に完全削除する機能を追加します。映像断片・音声・失敗した回復処理の一時データなどを対象とし、完成MP4・カメラパターン・保存済みショット設定は残します。使用中は拒否し、失敗時は理由を表示して再試行できます。自動削除・一括削除はありません。
+1.0.3では両版から音声ヘルパーEXEの同梱と自動展開・更新を除去します。新規設定は無音とし、等倍でゲーム音を使う場合だけ手動パス指定を必要にします。既存設定・旧版配置済みヘルパーは維持し、音声有効時にヘルパーが無効ならエラーを表示します。通常のMODビルドにネイティブビルドは不要です。
 
-NeoForgeのシェーダー連携は1.0.1の対応範囲を維持します。両版のassembleとForgeのreobfJarが成功し、JAR内のバージョン・クラス・翻訳を確認しました。利用者の希望に従い、Minecraft起動・ゲーム操作・自動テスト・実録画・実データの削除は行っていません。今回と過去の確認範囲は[検証記録](testing-ja.md)を参照してください。
+回復データ削除とNeoForgeのシェーダー連携は従来の対応範囲を維持します。両版のassembleとForgeのreobfJarが成功し、JAR内のEXE等の実行ファイル不在、バージョン、必要クラス、日英翻訳、ライセンス文書を読み取り確認しました。利用者の希望に従い、Minecraft起動・ゲーム操作・自動テスト・音声テスト・実録画は行っていません。今回と過去の確認範囲は[検証記録](testing-ja.md)を参照してください。

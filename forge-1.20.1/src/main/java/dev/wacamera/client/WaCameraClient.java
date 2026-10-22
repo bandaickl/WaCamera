@@ -8,6 +8,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.Util;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
@@ -293,9 +295,23 @@ public final class WaCameraClient {
         outputFps = preset.endsWith("60") ? 60 : preset.endsWith("24") ? 24 : 30;
         // The independent depth target renders at this resolution, regardless of the game window size.
         boolean recordAudio = settings().audio && value.playbackSpeed() == 1;
-        Path helper = !recordAudio || settings().audioHelper.isBlank() ? null : Path.of(settings().audioHelper);
+        Path helper = recordAudio ? validatedAudioHelper() : null;
         return new RecordingOptions(Path.of(settings().ffmpeg), root().resolve("recordings"), outputWidth, outputHeight,
                 outputFps, value.durationSeconds(), "libx264", helper, recordAudio, value.playbackSpeed());
+    }
+
+    /** Validate only requested normal-speed audio, before creating a recorder or changing state. */
+    private static Path validatedAudioHelper() {
+        if (!System.getProperty("os.name", "").startsWith("Windows"))
+            throw commandError("wacamera.error.audio_windows");
+        String configured = settings().audioHelper;
+        try {
+            if (configured != null && !configured.isBlank()) {
+                Path helper = Path.of(configured).toAbsolutePath().normalize();
+                if (Files.isRegularFile(helper)) return helper;
+            }
+        } catch (InvalidPathException | SecurityException ignored) { }
+        throw commandError("wacamera.error.audio_helper");
     }
 
     private static void enableCamera() {
