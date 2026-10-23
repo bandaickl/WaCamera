@@ -71,7 +71,7 @@ public final class FfmpegRecorder implements AutoCloseable {
         this.timeline = new CfrTimeline(options.fps(), options.playbackSpeed());
     }
 
-    /** Prepares the encoder and optional audio helper; the clock remains at zero until the first frame. */
+    /** Prepares the encoder and optional process audio capture; the clock remains at zero until the first frame. */
     public void start() throws IOException {
         synchronized (lock) {
             if (started || finishing) throw new IllegalStateException("Recorder can only be started once");
@@ -95,7 +95,7 @@ public final class FfmpegRecorder implements AutoCloseable {
                     .redirectOutput(session.resolve("encoder-stdout.log").toFile())
                     .redirectError(session.resolve("encoder-stderr.log").toFile()).start();
             if (options.recordAudio()) {
-                audio = new AudioCapture(options.audioHelper(), session);
+                audio = new AudioCapture(session);
                 audio.start();
             }
             synchronized (lock) {
@@ -110,9 +110,10 @@ public final class FfmpegRecorder implements AutoCloseable {
             accepting = false;
             finishing = true;
             workerDone = true;
+            // Finish session metadata while recovery/deletion is still excluded by our lease.
+            try { writeSessionMetadata("failed"); } catch (IOException ignored) {}
             destroyProcesses();
             synchronized (lock) { freeBuffers.clear(); frames.clear(); }
-            try { writeSessionMetadata("failed"); } catch (IOException ignored) {}
             IOException error = recoveryException(e);
             completion.completeExceptionally(error);
             throw error;
@@ -295,7 +296,7 @@ public final class FfmpegRecorder implements AutoCloseable {
                 Thread.sleep(100);
                 long now = System.nanoTime();
                 if (accepting && !encoderProcess.isAlive()) throw new IOException("Video encoder terminated unexpectedly");
-                if (accepting && audio != null && !audio.isAlive()) throw new IOException("Audio capture terminated unexpectedly");
+                if (accepting && audio != null && !audio.isAlive()) throw new IOException(audio.failureMessage());
                 if (firstFrameSeen && !finishing) {
                     double writtenSeconds = timeline.captureSecondsForFrames(framesWritten);
                     if (now - startNanos - (long) (writtenSeconds * 1_000_000_000.0) > MAX_LAG_NANOS) {
@@ -403,7 +404,13 @@ public final class FfmpegRecorder implements AutoCloseable {
     private void destroyProcesses() {
         if (audio != null) audio.close();
         if (encoderProcess != null && encoderProcess.isAlive()) encoderProcess.destroyForcibly();
-        if (sessionLock != null) sessionLock.close();
+        if (sessionLock != null) {
+            SessionLock lease = sessionLock;
+            sessionLock = null;
+            // Keep recovery/deletion excluded until the COM owner has finished all writes and cleanup.
+            if (audio != null) audio.afterTermination(lease::close);
+            else lease.close();
+        }
     }
 
     private static void ensureSpace(Path path, long required) throws IOException {

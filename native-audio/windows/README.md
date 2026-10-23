@@ -1,12 +1,14 @@
-# Windows process audio helper
+# Historical Windows process audio helper
 
-This is an **optional, separately built** helper for 1× game-audio recording. Starting with WaCamera 1.0.3, mod JARs do not contain its executable, and the mod does not extract, download or automatically update it. Building the Java mod requires no native helper or C++ tools.
+This source is retained as **historical reference**. **WaCamera 1.0.4 does not use this helper.** Current Windows 11 x64 audio capture calls WASAPI process-loopback from Java through Minecraft's existing JNA runtime. Users do not need to build or install an audio helper, and there is no helper-path field in the recording UI. See the current [recorder documentation](../../recorder/README.md).
+
+Version 1.0.3 removed this executable from mod JARs. Version 1.0.4 also removes its use at runtime; it neither downloads nor runs the helper. Existing helper files and legacy path values are not automatically deleted. FFmpeg and ffprobe remain required separately for video encoding and validation.
 
 Requires Windows build 20348 or newer (supported recording target: Windows 11 x64).
 
-## Build and configure
+## Historical build procedure
 
-To build the helper from this source, install Visual Studio C++ tools and Windows SDK 10.0.20348+, then run from the repository root:
+For maintenance of the old helper source only, the original build requires Visual Studio C++ tools and Windows SDK 10.0.20348+. Its command, from the repository root, is:
 
 ```powershell
 ./native-audio/windows/build.ps1
@@ -14,11 +16,7 @@ To build the helper from this source, install Visual Studio C++ tools and Window
 
 This script compiles and runs the C++ timeline checks, then writes `native-audio/windows/build/wacamera-audio.exe`. It is separate from `scripts/build.ps1` and its `-SkipTests` option.
 
-1. Keep the executable in a stable location of your choice.
-2. In Minecraft, open **K → Recording** and enter its **absolute path** under **Windows audio helper executable**.
-3. Choose **Game audio: ON** and **Playback speed: 1** for game audio. New settings default to **Game audio: OFF**.
-
-Existing configured paths and helpers installed by older versions remain usable; updating the mod does not replace or delete those files. If game audio is enabled but the helper is missing or invalid, recording reports an error instead of silently recording without sound. Above 1×, recording remains silent and retains the saved audio preference.
+This procedure is not part of the current mod build or installation. No C++ build, timeline test, game launch, or audio capture was performed for the 1.0.4 update.
 
 ## Capture protocol
 

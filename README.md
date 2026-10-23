@@ -4,9 +4,9 @@ Record yourself from an independent camera directly to MP4 while you keep playin
 
 **[Download WaCamera / ダウンロード](https://github.com/bandaickl/WaCamera/releases/latest)** · [日本語の操作説明](docs/usage-ja.md) · [Report an issue / 不具合報告](https://github.com/bandaickl/WaCamera/issues)
 
-**一人称で普段どおり遊びながら、別のカメラで自分も映る動画を撮るMOD**です。操作画面の手・照準・HUDを維持し、撮影カメラの映像をMP4へ直接保存します。**現在のソース／ローカルビルドの対象は1.0.3、GitHubの公開Releaseは1.0です。** 上のリンク先の1.0は音声ヘルパーEXEを同梱した旧版で、1.0.3の同梱解除は反映されていません。1.0.3のReleaseはまだ公開していません。サーバーへの導入は不要です。
+**一人称で普段どおり遊びながら、別のカメラで自分も映る動画を撮るMOD**です。操作画面の手・照準・HUDを維持し、撮影カメラの映像をMP4へ直接保存します。**現在のソース／ローカルビルドの対象は1.0.4、GitHubの公開Releaseは1.0です。** 上のリンク先の1.0は音声ヘルパーEXEを同梱した旧版で、1.0.4のJNA音声方式は反映されていません。1.0.4のReleaseはまだ公開していません。サーバーへの導入は不要です。
 
-The source and local build target is **1.0.3**. It removes the bundled audio helper executable and defaults new settings to silent recording. The published GitHub release is still **1.0**, which includes the older bundled helper; the download link above does not provide 1.0.3.
+The source and local build target is **1.0.4**. Game audio uses Minecraft's existing JNA runtime and Windows process-loopback APIs, without an audio-helper EXE or an additional DLL. New Windows x64 settings enable audio; existing preferences are preserved. FFmpeg and ffprobe are still required separately. The published GitHub release is still **1.0**, which includes the older bundled helper; the download link above does not provide 1.0.4.
 
 ## 対応環境
 
@@ -25,14 +25,14 @@ The source and local build target is **1.0.3**. It removes the bundled audio hel
 - **1〜120倍のタイムラプス**：小数の倍率にも対応。24fps・10倍なら実時間1秒に2.4枚を撮影し、倍速のMP4を保存します。1倍を超える録画は無音です。
 - **カメラの目印**：操作画面に位置・方向・画角を表示します。動画には入らず、F1で非表示にできます。
 - **別ウィンドウ操作中も録画**：フォーカス喪失による自動一時停止を録画中だけ抑え、終了後は通常の設定へ戻します。
-- **ゲーム音と回復機能**：別途用意した音声ヘルパーを手動指定すると、等倍でMinecraftの再生音を収録できます。保存が中断された録画は「回復」から確認でき、不要な回復データを選んで確認後に削除できます。
+- **ゲーム音と回復機能**：Windows 11 x64では音声ヘルパーの準備なしで、等倍のMinecraft再生音を収録する設計です。保存が中断された録画は「回復」から確認でき、不要な回復データを選んで確認後に削除できます。
 
 ## 最初の撮影
 
 1. ワールド内で **K** を押して撮影パネルを開きます。
 2. 「撮影地点」の **今の視点に更新** で選択中の地点を設定するか、レンズのXYZ・向きを入力します。追加したい場所へ移動するときはパネルを閉じ、再度開いて **今の視点を追加** を押します。
 3. 「ショット」で撮影時間を設定し、「視線」で「自分を向く」などを選びます。一地点なら固定、複数地点なら移動撮影です。
-4. 「録画設定」で画質を選びます。初めは **720p30** を推奨します。新規設定では **ゲーム音：なし** です。FFmpegが未導入なら **FFmpegを準備** を押します。
+4. 「録画設定」で画質を選びます。初めは **720p30** を推奨します。Windows x64の新規設定では **ゲーム音：あり** です。既存の設定は維持します。FFmpegが未導入なら **FFmpegを準備** を押します。
 5. **プレビュー**で構図を確認し、**別視点で録画**を開始します。途中停止は **F8**。キー割り当ては変更できます。
 
 プレビュー中だけ画面を撮影カメラへ切り替えます。録画中の移動・マウス・ブロック操作は、普段どおり本人を操作します。動画には操作用HUDやカメラの目印を入れません。
@@ -47,9 +47,11 @@ The source and local build target is **1.0.3**. It removes the bundled audio hel
 
 選択しているFFmpegビルドのライセンス情報は、配布元の文書と[外部コンポーネント](THIRD_PARTY.md)を参照してください。WaCamera本体のMIT Licenseとは分けて案内しています。
 
-**1.0.3から音声ヘルパーEXEもJARに同梱せず、MODによる展開・ダウンロード・自動更新は行いません。** 新規設定は無音です。等倍でゲーム音を使う場合は、ヘルパーを別途用意し、「録画設定」の **Windows音声ヘルパーの実行ファイル** に絶対パスを入力して、**ゲーム音：あり** を選びます。初めて用意する場合は[ソースからのビルドと設定手順](native-audio/windows/README.md)を参照してください。
+**1.0.4からゲーム音はMinecraftに既に含まれるJNAを使い、JavaからWindows標準のWASAPI process-loopbackへ接続します。音声ヘルパーEXEやパス入力は不要です。** この音声機能のために新しいEXE・DLLを同梱・ダウンロードしません。FFmpeg・ffprobeの準備は引き続き必要です。
 
-既存の音声設定や、旧版で配置済みのヘルパーは維持し、引き続き利用できます。音声を有効にした等倍録画でヘルパーが見つからない／無効な場合は、理由を表示して開始を拒否します。無音で撮る場合は自分で **ゲーム音：なし** に切り替えてください。Minecraftプロセス内の再生音が対象で、マイクや別アプリの通話を録音する機能ではありません。1倍を超える録画は音声設定にかかわらず無音で、元の音声設定は保持します。
+Windows x64では新規設定を **ゲーム音：あり** にします。保存済みのON/OFFは変更しないため、1.0.3で無音になっている場合は必要に応じて **ゲーム音：あり** を選んでください。音声の対応環境はWindows 11 x64です。非Windows・非x64や、音声APIの初期化に失敗する環境では理由を表示し、勝手に無音やPC全体の音へ切り替えません。
+
+Minecraftプロセスの再生音が対象で、マイクや別アプリの通話を録音する機能ではありません。1倍を超える録画は音声設定にかかわらず無音で、元の設定は保持します。旧ヘルパーのパスは使わず、配置済みの実ファイルも自動削除しません。旧版の音声付き回復データを読める形式は維持します。今回のJNA方式はゲーム起動・自動テスト・実録音を行っておらず、実動作と同期精度は未検証です。
 
 ## 保存と再利用
 
@@ -71,7 +73,7 @@ Forgeのシェーダー録画は、**Embeddium 0.3.31＋Oculus 1.8.0＋Complemen
 
 **1.0.1でNeoForge版にも独立したシェーダー録画処理を移植しました。** 対象はMinecraft 1.21.1用の **Iris 1.8.12＋Sodium 0.6.13**です。実JARのAPIとソースを照合しましたが、利用者の希望により、今回Minecraftの起動・自動テスト・実録画は行っていません。NeoForgeでの描画結果・性能は未検証です。**NeoForgeのシェーダー有効＋Distant Horizons併用は未対応で、録画開始時に理由を表示します。** Iris・Sodiumはシェーダー利用時の追加構成であり、シェーダーなしの通常録画には不要です。
 
-1.0.3でも回復データ削除とシェーダーの対応範囲は維持しています。両版とも未検証のMOD・シェーダーの組み合わせまで動作を保証しません。
+1.0.4でも回復データ削除とシェーダーの対応範囲は維持しています。両版とも未検証のMOD・シェーダーの組み合わせまで動作を保証しません。
 
 - 撮影できるのは読み込み済みの地形です。カメラだけを遠くへ動かしても、未受信のチャンクは撮影できません。
 - 二つの視点を描画するため、通常プレイよりGPU負荷が増えます。バックグラウンドでも負荷は続き、ドライバーや他MODの制限でfpsが下がる場合があります。
@@ -79,7 +81,7 @@ Forgeのシェーダー録画は、**Embeddium 0.3.31＋Oculus 1.8.0＋Complemen
 - 通常のシングルプレイではEscのポーズも停止対象です。マルチプレイやLAN公開中のEsc画面では、ゲームが停止しなければ録画を継続します。
 - 完成動画を直接保存する方式です。リプレイ機能や撮影後の視点変更、障害物の自動回避はありません。
 
-1.0.3の変更点は[変更履歴](docs/release-1.0.3-changelog.md)、確認範囲は[検証記録](docs/testing-ja.md)を参照してください。[1.0.2](docs/release-1.0.2-changelog.md)・[1.0.1](docs/release-1.0.1-changelog.md)・[1.0](docs/release-1.0-changelog.md)とalpha版の試験記録は、当時の記録として残しています。
+1.0.4の変更点は[変更履歴](docs/release-1.0.4-changelog.md)、確認範囲は[検証記録](docs/testing-ja.md)を参照してください。[1.0.3](docs/release-1.0.3-changelog.md)・[1.0.2](docs/release-1.0.2-changelog.md)・[1.0.1](docs/release-1.0.1-changelog.md)・[1.0](docs/release-1.0-changelog.md)とalpha版の試験記録は、当時の記録として残しています。
 
 ## ビルド
 
@@ -90,10 +92,10 @@ JDKの場所は `JAVA17_HOME` と `JAVA21_HOME` で指定できます。
 ./scripts/build.ps1
 ```
 
-公開用ファイルを`dist/1.0.3/`へまとめる場合は`./scripts/build.ps1 -Release`を使います。Minecraftを起動せず、テストも実行しないassembleは`./scripts/build.ps1 -Release -SkipTests`です。`-SkipNative`は旧コマンド互換のため残していますが、現在は何も変更しません。音声ヘルパーのビルドが必要な場合だけ、[専用の手順](native-audio/windows/README.md)を別途実行してください。
+公開用ファイルを`dist/1.0.4/`へまとめる場合は`./scripts/build.ps1 -Release`を使います。Minecraftを起動せず、テストも実行しないassembleは`./scripts/build.ps1 -Release -SkipTests`です。`-SkipNative`は旧コマンド互換のため残していますが、現在は何も変更しません。旧音声ヘルパーのソースは[履歴参考](native-audio/windows/README.md)で、現行MODのビルド・利用には不要です。
 
 完成JARは `dist/` にコピーされます。共通処理のテストだけなら `./gradlew.bat test`。
-通常のテストでは音を再生しません。FFmpeg統合テストは `WACAMERA_TEST_FFMPEG`、Windows音声ヘルパーは `WACAMERA_TEST_AUDIO_HELPER` にパスを設定すると有効になります。
+通常のテストでは音を再生しません。FFmpeg統合テストは `WACAMERA_TEST_FFMPEG`、Windowsプロセス音声取得の試験は `WACAMERA_TEST_WINDOWS_AUDIO=true` で明示的に有効化します。音声ヘルパーのパスは不要です。1.0.4では利用者の希望により自動テスト・音声取得は実行していません。
 
 ## 開発用Minecraft
 
@@ -104,7 +106,7 @@ JDKの場所は `JAVA17_HOME` と `JAVA21_HOME` で指定できます。
 ./neoforge-1.21.1/gradlew.bat -p neoforge-1.21.1 runClient
 ```
 
-音声を使用する開発試験だけは、Windows音声ヘルパーを別途用意し、開発用インスタンスの録画設定に実行ファイルの絶対パスを事前設定してください。`-Psmoke -PsmokeAudio` を加えると、ミュートした専用の新規フラットワールドで固定／移動カメラを自動録画し終了します。既存セーブは開きません。`-PsmokeFfmpeg=<実行ファイル>` でテスト用エンコーダーを指定できます。1.0.3更新時にはこれらのゲーム試験を実行していません。
+`-Psmoke -PsmokeAudio` を加えると、ミュートした専用の新規フラットワールドで固定／移動カメラを自動録画し終了する開発用手順です。現行の音声取得に旧ヘルパーの準備・パス指定は不要です。既存セーブは開きません。`-PsmokeFfmpeg=<実行ファイル>` でテスト用エンコーダーを指定できます。1.0.4更新時にはこれらのゲーム試験・音声取得を実行していません。
 
 `-Psmoke -PsmokeTimelapse` は10枠の保存・復元と10倍／120倍／等倍を検証します。保存済みのパターンを保護するため、開発用インスタンスの10枠がすべて空の場合だけ動作します。
 
@@ -121,7 +123,7 @@ JDKの場所は `JAVA17_HOME` と `JAVA21_HOME` で指定できます。
 - [撮影設定の例](examples/intro-shot.json)：実装済みの保存形式。
 
 - [録画モジュールとテスト](recorder/README.md)
-- [Windows音声ヘルパー](native-audio/windows/README.md)
+- [旧Windows音声ヘルパーの履歴参考](native-audio/windows/README.md)
 - [外部コンポーネント](THIRD_PARTY.md)
 
 公開用の紹介文は[英語](docs/curseforge-description-en.md)・[日本語](docs/curseforge-description-ja.md)・[英日併記](docs/curseforge-description-bilingual.md)を用意しています。[CurseForge登録用の案内](docs/curseforge-upload-ja.md)も参照できます。

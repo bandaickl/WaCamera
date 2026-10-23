@@ -25,12 +25,11 @@ class LongRecordingIntegrationTest {
         assertTrue(seconds >= 1 && seconds <= 3600);
         String configured = System.getenv("WACAMERA_TEST_FFMPEG");
         assumeTrue(configured != null && Files.isRegularFile(Path.of(configured)));
-        String helper = System.getenv("WACAMERA_TEST_AUDIO_HELPER");
-        boolean captureSilentAudio = helper != null && Files.isRegularFile(Path.of(helper));
+        boolean captureSilentAudio = "true".equalsIgnoreCase(System.getenv("WACAMERA_TEST_WINDOWS_AUDIO"));
         Path output = Path.of("build", "long-recording-test").toAbsolutePath();
         Files.createDirectories(output);
         FfmpegRecorder recorder = new FfmpegRecorder(new RecordingOptions(Path.of(configured), output, 1280, 720, 30,
-                seconds, "libx264", captureSilentAudio ? Path.of(helper) : null, captureSilentAudio));
+                seconds, "libx264", null, captureSilentAudio));
         ByteBuffer pixels = ByteBuffer.allocate(1280 * 720 * 4);
         JsonArray memory = new JsonArray();
         long baseline = 0, peak = 0;

@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-/** Real video-only FFmpeg tests. Never starts an audio helper or playback device. */
+/** Real video-only FFmpeg tests. Never opens an audio capture or playback device. */
 class TimelapseIntegrationTest {
     @TempDir(cleanup = CleanupMode.ON_SUCCESS) Path temporary;
 
@@ -46,7 +46,7 @@ class TimelapseIntegrationTest {
     private void verifyOneSecond(int fps, long readbackDelayNanos) throws Exception {
         Path binary = ffmpeg();
         RecordingOptions options = new RecordingOptions(binary, temporary, 64, 64, fps, 1,
-                "libx264", null, true, 10); // Requested audio must not require a helper at >1x.
+                "libx264", null, true, 10); // Requested audio must not initialize Windows audio at >1x.
         try (FfmpegRecorder recorder = new FfmpegRecorder(options)) {
             recorder.start();
             assertEquals(0, recorder.elapsedSeconds());

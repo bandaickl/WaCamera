@@ -2,7 +2,7 @@
 
 WaCamera records your Minecraft world directly to MP4 from an independent camera while you keep playing in first person. Build, move, and interact normally: your hands and HUD stay on your screen, while the recording can include your own character.
 
-WaCamera focuses on placing cameras and recording, without a complex timeline. **Version 1.0.3 removes the bundled audio helper executable and defaults new settings to silent recording.** It retains recovery-data deletion and the NeoForge shader integration from earlier updates. The published GitHub release is still 1.0, which includes the older bundled helper; a 1.0.3 release has not been published.
+WaCamera focuses on placing cameras and recording, without a complex timeline. **Version 1.0.4 records game audio through Minecraft's existing JNA runtime and Windows audio APIs, without preparing an audio-helper EXE.** It retains recovery-data deletion and the NeoForge shader integration from earlier updates. The published GitHub release is still 1.0, which includes the older bundled helper; a 1.0.4 release has not been published.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ The supported recording environment is **Windows 11 x64**. MP4 recording needs F
 1. Enter a world and press **K** to open the camera panel.
 2. In **Points**, use **Use current view** to set the selected point, or enter lens XYZ, yaw, and pitch. Close the panel, move, and use **Add view** for more points. One point gives a fixed camera; multiple points make a moving shot.
 3. In **Shot**, set the duration and countdown. In **Look**, choose **Look: point directions**, **Look: at me**, or **Look: at coordinates**.
-4. In **Recording**, choose quality. Start with **720p30**; new settings use **Game audio: OFF**. Prepare FFmpeg if needed.
+4. In **Recording**, choose quality. Start with **720p30**; new Windows x64 settings use **Game audio: ON**, while existing preferences are preserved. Prepare FFmpeg if needed.
 5. Use **Preview** to check the shot, then **Record camera** to record while playing. Press **F8** to stop early. Both keys are rebindable. Preview temporarily replaces your view; recording keeps your normal view.
 
 Use up to 64 points, straight or smooth movement, adjustable FOV, and 1–3,600 seconds per shot. Outputs are 720p24, 720p30, 1080p24, 1080p30, and 1080p60.
@@ -33,7 +33,9 @@ Set **Playback speed** from **1–120×**, including decimals. At 24fps and 10×
 
 ## Optional game audio
 
-At 1×, game audio requires a separately prepared Windows audio helper. Enter its absolute path under **Recording → Windows audio helper executable**, then choose **Game audio: ON**. Version 1.0.3 neither bundles, extracts, downloads nor automatically updates this helper. Existing settings and helpers from older versions are retained. A missing or invalid helper produces an error when audio is enabled; recording does not silently drop audio. The helper captures Minecraft’s playback, not your microphone. Source-build instructions are in `native-audio/windows/README.md` in the [source repository](https://github.com/bandaickl/WaCamera).
+On **Windows 11 x64**, select **Recording → Game audio: ON** and use 1× playback speed. Version 1.0.4 calls Windows WASAPI process-loopback through JNA already supplied by Minecraft. No audio-helper EXE or helper-path entry is needed, and no additional EXE or DLL is bundled or downloaded for audio. **FFmpeg and ffprobe are still needed** for video encoding and validation.
+
+New Windows x64 settings enable audio. Your existing ON/OFF choice is preserved, including OFF saved by 1.0.3. Old helper paths are unused, and old helper files are not automatically deleted. Capture targets Minecraft's playback, not your microphone or other applications. Audio requested on a non-Windows or non-x64 environment, or an audio initialization failure, produces an error; it does not silently switch to whole-system capture or no audio. Above 1×, recordings remain silent and retain your audio preference. Existing audio recovery metadata remains supported. The new audio integration has not been verified by launching Minecraft or making an actual recording in this update.
 
 ## Commands and files
 
@@ -55,6 +57,6 @@ Camera markers appear only in your play view, never in the video. Recording cont
 
 Forge shader recording was tested in earlier releases with **Embeddium 0.3.31, Oculus 1.8.0, and Complementary Unbound r5.6**. Other combinations are not guaranteed.
 
-**1.0.1 ports independent shader recording to NeoForge**, targeting **Iris 1.8.12 and Sodium 0.6.13 for Minecraft 1.21.1**. This scope is unchanged in 1.0.3. The actual JAR APIs were checked against source code. No Minecraft launch, automated tests, or actual recording have been performed for the 1.0.1–1.0.3 updates. NeoForge rendering results and performance remain unverified. **Active shaders together with Distant Horizons are unsupported on NeoForge and recording is refused with an explanation.** Iris and Sodium are needed only when using this shader integration; neither is required for ordinary recording without shaders.
+**1.0.1 ports independent shader recording to NeoForge**, targeting **Iris 1.8.12 and Sodium 0.6.13 for Minecraft 1.21.1**. This scope is unchanged in 1.0.4. The actual JAR APIs were checked against source code. No Minecraft launch, automated tests, or actual recording have been performed for the 1.0.1–1.0.4 updates. NeoForge rendering results and performance remain unverified. **Active shaders together with Distant Horizons are unsupported on NeoForge and recording is refused with an explanation.** Iris and Sodium are needed only when using this shader integration; neither is required for ordinary recording without shaders.
 
 Only loaded terrain can be filmed. Rendering two views increases GPU load, including in the background. WaCamera records finished video; it does not provide replays or let you change the viewpoint afterward.

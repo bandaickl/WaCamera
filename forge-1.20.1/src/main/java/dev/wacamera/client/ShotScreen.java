@@ -143,10 +143,7 @@ public final class ShotScreen extends Screen {
     private void recordingPage(int x, int w) {
         ClientSettings s = WaCameraClient.settings();
         int half = (w - 6) / 2;
-        field("ffmpeg", s.ffmpeg, x, 53, half).setMaxLength(1024);
-        var helperField = field("audio_helper", s.audioHelper, x + half + 6, 53, half);
-        helperField.setMaxLength(1024);
-        helperField.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("wacamera.audio_helper_hint")));
+        field("ffmpeg", s.ffmpeg, x, 53, w).setMaxLength(1024);
         buttonText(s.quality, x, 88, half, () -> {
             if (!commit()) return;
             s.quality = switch (s.quality) {
@@ -157,7 +154,7 @@ public final class ShotScreen extends Screen {
         });
         audioButton = button("wacamera.audio." + s.audio, x + half + 6, 88, half,
                 () -> { if (commit()) { s.audio = !s.audio; init(); } });
-        audioButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("wacamera.audio_helper_hint")
+        audioButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable("wacamera.audio_hint")
                 .append("\n").append(Component.translatable("wacamera.speed_audio_hint"))));
         int speedWidth = Math.min((w - 12) / 3, 140);
         field("playback_speed", speedText(playbackSpeed), x, 113, speedWidth)
@@ -434,7 +431,7 @@ public final class ShotScreen extends Screen {
             target = nextTarget; playbackSpeed = nextSpeed; points.clear(); points.addAll(nextPoints);
             if (page == 3) {
                 var settings = WaCameraClient.settings();
-                settings.ffmpeg = fields.get("ffmpeg").getValue().trim(); settings.audioHelper = fields.get("audio_helper").getValue().trim();
+                settings.ffmpeg = fields.get("ffmpeg").getValue().trim();
             }
             if (!value.equals(WaCameraClient.edited())) WaCameraClient.setEdited(value);
             message = "";

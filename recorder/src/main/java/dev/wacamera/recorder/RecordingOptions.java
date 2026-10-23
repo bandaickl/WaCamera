@@ -3,7 +3,10 @@ package dev.wacamera.recorder;
 import java.nio.file.Path;
 import java.util.Objects;
 
-/** Pixels are tightly packed, top-down RGBA8. Duration and capture timestamps use real time. */
+/**
+ * Pixels are tightly packed, top-down RGBA8. Duration and capture timestamps use real time.
+ * audioHelper is an ignored legacy parameter, retained for source compatibility.
+ */
 public record RecordingOptions(Path ffmpeg, Path outputDirectory, int width, int height,
                                int fps, double durationSeconds, String encoder,
                                Path audioHelper, boolean recordAudio, double playbackSpeed) {
@@ -26,11 +29,10 @@ public record RecordingOptions(Path ffmpeg, Path outputDirectory, int width, int
         if (!Double.isFinite(playbackSpeed) || playbackSpeed < 1 || playbackSpeed > 120) {
             throw new IllegalArgumentException("playbackSpeed must be finite and between 1 and 120");
         }
-        // Timelapse never opens an audio device/helper, even if the client keeps audio enabled.
+        // Timelapse never loads native audio APIs or opens a device, even if the client keeps audio enabled.
         if (playbackSpeed > 1) recordAudio = false;
         if (encoder == null || encoder.isBlank()) encoder = "libx264";
         if (!encoder.matches("[A-Za-z0-9_]+")) throw new IllegalArgumentException("Invalid encoder name");
-        if (recordAudio && audioHelper == null) throw new IllegalArgumentException("Audio helper is required for audio recording");
     }
 
     public int frameBytes() { return Math.multiplyExact(Math.multiplyExact(width, height), 4); }

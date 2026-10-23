@@ -1,5 +1,7 @@
 # WaCamera 制作設計
 
+2026-10-23、1.0.4：音声ヘルパープロセスをMinecraft既存JNA経由のWindows WASAPI process-loopbackへ置き換える。Javaの録音ワーカーがCOM・音声APIの開始から解放までを担当し、音声用の新しいEXE・DLLは配布・取得しない。Windows x64の新規音声設定はON、既存のON/OFFは尊重し、旧ヘルパーパスは互換用に残すが参照しない。旧ファイルを自動削除しない。FFmpeg・ffprobeと既存音声回復形式は維持する。今回の確認はassembleと静的確認に限り、ゲーム起動・自動テスト・実録音・実録画は行わない。結果は`testing-ja.md`の1.0.4節へ分けて記録する。
+
 2026-10-23、1.0.3：音声ヘルパーEXEを両JARへ組み込む処理と、クライアント起動時の自動展開・更新を除去する。新規音声設定はOFF、等倍で音声ONの場合だけ手動設定されたヘルパーのパスを検証する。既存設定・旧版配置済みヘルパーを変更・削除しない。通常ビルドからネイティブビルド依存を外し、`scripts/build.ps1 -Release -SkipTests`でJDK 17／21のみを使うassembleを行えるようにする。`-SkipNative`は互換用のno-opとして残す。ゲーム・テストは実行せず、ビルドとパッケージ検査の結果は`testing-ja.md`の1.0.3節へ記録する。以下の日付付き記述は各版の履歴である。
 
 2026-10-13、1.0.2：共通録画モジュールに選択した回復データの削除処理を追加し、両ローダーの「回復」から確認画面を挟んで呼び出す。使用中は削除を拒否し、失敗を表示して再試行できる。自動削除・一括削除は追加しない。配布物の準備先は`dist/1.0.2/`を予定し、ビルド結果は確認後に記録する。利用者の希望によりMinecraft起動・自動テスト・実録画は行わず、公開Releaseはv1.0を維持する。以下の1.0.1のシェーダー対応範囲と未検証事項は継続する。
@@ -25,10 +27,10 @@
 ```text
 WaCamera/
   core/                    Java 17。経路、時計、録画状態、設定検証
-  recorder/                Java 17。FFmpeg管理、フレーム供給、保存処理
+  recorder/                Java 17。FFmpeg管理、フレーム供給、JNA音声取得、保存処理
   forge-1.20.1/            Forge MDK / ForgeGradle / Java 17
   neoforge-1.21.1/         NeoForge MDK / ModDevGradle / Java 21
-  native-audio/windows/    C++。プロセス単位の音声キャプチャー補助プログラム
+  native-audio/windows/    旧C++ヘルパーの履歴参考。現行の録音では使わない
   examples/                経路JSON
   docs/                    仕様と対応表
 ```
@@ -37,7 +39,7 @@ WaCamera/
 
 ForgeとNeoForgeはMDK由来の独立したビルドを使い、Gradle Wrapperは検証済みの8.8へ固定する。ビルドプラグインとJDKは版別に選ぶ。共通Java部分は各ビルドのサブプロジェクトとして解決し、完成JARに組み込む。別途core JARの配置は不要。
 
-1.0.3の通常ビルドは音声ヘルパーをビルド・同梱しない。JDK 17と21を用意し、`scripts/build.ps1 -Release -SkipTests`でテストを実行せず`dist/1.0.3/`向けにassembleする。音声ヘルパーを必要とする利用者だけが`native-audio/windows/build.ps1`を別途実行する。この専用スクリプトにはVisual Studio C++ツール・Windows SDKが必要で、C++のタイムライン検査も実行する。
+1.0.4の通常ビルドは音声ヘルパーをビルド・同梱しない。JDK 17と21を用意し、`scripts/build.ps1 -Release -SkipTests`でテストを実行せず`dist/1.0.4/`向けにassembleする。JNAはMinecraft既存の依存を使い、追加のJNA本体・ネイティブライブラリをMODへ同梱しない。旧C++ヘルパーのビルドは現行の利用手順に含めない。
 
 Forge 1.20.1はJava 17、NeoForge 1.21.1はJava 21を使う。ローダーとMinecraftの版を同時に固定し、Forgeの`1.20.x`ブランチを`1.20.1`と同じものとして参照しない。[Forge開発準備](https://docs.minecraftforge.net/en/1.20.1/gettingstarted/)、[NeoForge開発準備](https://docs.neoforged.net/docs/1.21.1/gettingstarted/)、[1.21.1用ModDevGradle MDK](https://github.com/NeoForgeMDKs/MDK-1.21.1-ModDevGradle)
 
@@ -71,7 +73,8 @@ Forge 1.20.1はJava 17、NeoForge 1.21.1はJava 21を使う。ローダーとMin
 | `CfrTimeline` | 実撮影時刻を倍率付きの出力スロットへ対応させ、固定出力fpsの順序にする |
 | `RecordingOptions` | 出力解像度・fps、実撮影秒数、録画倍率。取得fpsと最大出力枚数を計算し、1倍超の音声を無効化 |
 | `FfmpegRecorder` | 子プロセス、入力pipe、ログ、終了・異常検知 |
-| `AudioCapture` | OS別音声取得、開始時刻・サンプル時計の報告 |
+| `AudioCapture`／`WindowsProcessLoopback` | 同一ワーカーでJNA経由のWindows process-loopback開始・取得・停止・解放、時計の対応付け |
+| `PcmWaveWriter`／`AudioTimeline` | PCM16 WAV保存、QPC時刻による無音補填と重複部分の切り詰め |
 | `RecordingFinalizer` | 音声時刻補正、MP4結合、検査、ファイル確定 |
 | `ShotRepository` | 件数制限のない名前付きショットの保存・読み込み |
 | `ShotPatternRepository` | 名前をパスに使わず、1〜10の固定スロットへショットを保存・復元 |
@@ -163,7 +166,7 @@ NeoForgeのDH用二視点バッファー分離は実装しない。Irisのシェ
 録画スレッド
   実撮影時刻を倍率付きの出力スロットに並べる → FFmpegのstdin → 一時動画
 
-音声補助プログラム
+Java音声ワーカー（Minecraft既存JNA → Windows WASAPI）
   1倍かつ音声ONのみ：MinecraftのPIDを指定 → 時刻付きPCMを一時保存
 
 停止後の保存スレッド
@@ -202,17 +205,17 @@ rawvideoは画素列であり、各フレームの実時刻を持たない。`-f
 
 ## 7. 音声の技術試作
 
-現在の導入方法はヘルパーの手動指定に限定する。新規設定は無音。等倍で音声が有効なら、録画開始前に設定された絶対パスの実行ファイルを検証し、未設定・不正・不存在は理由付きエラーにする。検証や起動に失敗しても音声OFFへ自動変更して録画を続行しない。MODによる抽出・取得・更新はなく、旧版の設定とヘルパーはそのまま利用できる。
+1.0.4はMinecraftに含まれるJNAを利用する。Minecraft 1.20.1の5.12.1と1.21.1の5.14.0を共通API範囲で扱い、追加のEXE・DLLは同梱・取得しない。Windows x64の新規設定は音声ON、既存のON/OFFは維持する。旧ヘルパーの入力欄をなくし、保存済みのパス値は互換用に残すが新録音では参照しない。配置済みヘルパーの実ファイルは自動削除しない。
 
-音声補助プログラムを起動するのは `playbackSpeed == 1` かつ音声設定が有効な場合だけとする。1倍超では`RecordingOptions`側でも音声を無効化し、音声の時間伸縮や倍速結合は行わない。GUIの音声設定は上書きせず、1倍へ戻したときに元の選択を使えるようにする。
+音声取得を開始するのは `playbackSpeed == 1` かつ音声設定が有効な場合だけとする。1倍超では`RecordingOptions`側でも音声を無効化し、音声の時間伸縮や倍速結合は行わない。GUIの音声設定は上書きせず、1倍へ戻したときに元の選択を使えるようにする。
 
-Windows用の小さなC++補助プログラムからapplication loopbackを使い、Java側は`ProcessHandle.current().pid()`で対象を渡す。通信プロトコルは開始準備、開始、停止、異常、サンプル形式、時刻情報に限定する。FFmpegでプロセス単位取得が当然にできるとは想定せず、取得部分を別責務にする。
+`AudioCapture`は一つのワーカーで`WindowsProcessLoopback`のopen・start・readPacket・stop・closeを実行する。JavaからWindows標準のCOM/WASAPI process-loopback APIを呼び、MinecraftのPIDを指定する。非Windows・非x64・API初期化失敗は理由付きエラーにし、音声OFFや通常のendpoint loopbackへ自動変更しない。取得部分はFFmpegとは別責務のままにする。
 
 Microsoft公式サンプルの最低要件はbuild 20348以降。Windows 11 x64を初期の検証対象とし、起動時に実際のAPI利用可否も調べる。通常のWASAPI endpoint loopbackは他アプリの音を含み得る別方式なので、自動フォールバックしない。[公式サンプル](https://learn.microsoft.com/en-us/samples/microsoft/windows-classic-samples/applicationloopbackaudio-sample/)、[通常loopbackの説明](https://learn.microsoft.com/en-us/windows/win32/coreaudio/loopback-recording)
 
 最初は48kHz・ステレオのPCM sidecarへ保存し、停止時にAACへ変換・映像に結合する。二本のライブpipeの起動順やブロックを同時に解決するより、時刻を検査しやすい。16bit PCM換算で約11.5MB/分の一時容量が追加で必要になる。実デバイス形式に応じた変換は明示する。
 
-音声開始のオフセット、音声サンプル位置、native側の単調時刻を記録する。JavaのnanoTimeとnativeの時刻は、起点や単位が同一だと仮定せず、往復ハンドシェイク等で対応を測る。長時間はサンプル時計のドリフトも計測し、無音補完・先頭トリム・リサンプルで共通時計に合わせた音声を作る。メタデータなしのPCMに`aresample=async`を付けるだけで実時計との差が解決するとは扱わない。
+音声開始のオフセット、音声サンプル位置、QPCの単調時刻を記録する。QPC呼出しの前後を`System.nanoTime()`で8回測り、最短の往復時間の中点から`nativeToJavaNanos`を求め、半往復時間を不確かさとして保存する。起点が同じだとは仮定しない。`AudioTimeline`は2ms未満のjitterを許容し、長い無音区間を補填して重複を切り詰める。`PcmWaveWriter`は48kHz・ステレオ・PCM16で保存する。既存の`audio.json`と`audio-clock.json`のキー・読み取りを維持し、旧ヘルパーで取得した回復データも扱う。実デバイスでの取得・長時間のドリフト・旧回復の実行は今回未検証である。
 
 音源の空間的な聞こえ方は初版では本人基準に固定する。Cameraを差し替えた影響でリスナーまで動かないか、音の距離減衰を実機で確認する。
 
@@ -222,7 +225,7 @@ Microsoft公式サンプルの最低要件はbuild 20348以降。Windows 11 x64�
 
 ## 8. FFmpegと保存
 
-既存FFmpegの実行ファイル指定と、「FFmpegを準備」による固定版の取得を提供する。FFmpeg・ffprobeはJARに同梱せず別プロセスとして起動する。準備ボタンはGyanの9.0.2 essentialsを固定SHA-256で検証し、LICENSE・README・取得元を記したORIGINとともに配置する。1.0.3でもこの機能は維持し、音声ヘルパー用の自動取得は追加しない。
+既存FFmpegの実行ファイル指定と、「FFmpegを準備」による固定版の取得を提供する。FFmpeg・ffprobeはJARに同梱せず別プロセスとして起動する。準備ボタンはGyanの9.0.2 essentialsを固定SHA-256で検証し、LICENSE・README・取得元を記したORIGINとともに配置する。1.0.4でもこの機能は維持する。音声ヘルパー不要という説明は、FFmpegも不要という意味ではない。
 
 ソフトウェアH.264を基準実装とし、NVENC/QSV/AMF等は利用可能一覧に存在するだけで有効にしない。短い実エンコードを実施し、失敗時は撮影前にソフトウェアへ切り替える。エンコーダーごとに異なる品質引数を内部で吸収し、GUIにはCRFやGOP等を出さない。
 
@@ -277,8 +280,8 @@ GUIの「パターン」タブではA（1）〜J（10）の枠を選択する。
 | P1 | 直線の二地点、秒数、プレビュー、JSON | 指定経路を再現し、停止後に操作へ戻る |
 | P2 | フレーム取得、FFmpeg、無音動画 | 10秒MP4、上下・色・HUD・時間が正しい |
 | P3 | バッファー上限、CFR、PBO、異常処理 | 意図的な処理落ちで長さが縮まず、メモリーが増え続けない |
-| P4 | Windows音声補助、時刻補正、MP4結合 | ゲーム音が入り、別アプリ音が混ざらず同期目標を満たす |
-| P5 | カジュアルUI、なめらかな経路、自分を向く、導入支援 | GUIで地点設定から動画保存まで完結。音声は外部ヘルパーの事前設定が必要 |
+| P4 | JNA経由のWindows音声取得、時刻補正、MP4結合 | ゲーム音が入り、別アプリ音が混ざらず同期目標を満たす |
+| P5 | カジュアルUI、なめらかな経路、自分を向く、導入支援 | GUIで地点設定から動画保存まで完結。追加音声ヘルパーの準備は不要 |
 | P6 | 両版の実機検証、対応表、リリース成果物 | クリーン環境に二本のJARをそれぞれ導入して同じ操作ができる |
 
 二視点同時描画は必須機能として両版に含める。広いシェーダー互換、他OS音声、各種GPUでの性能測定は追加の検証範囲とする。初案の工数見積もりは二視点を外していたため、本仕様には適用しない。
@@ -294,7 +297,7 @@ GUIの「パターン」タブではA（1）〜J（10）の枠を選択する。
 - 停止要求の重複、準備失敗、エンコーダー異常、最終保存失敗で正しい状態へ遷移すること。
 - JSON往復、schema 1から1倍への移行、schema 2の倍率必須、版番号の不一致、破損データ、範囲外の数値。
 - 全10スロットの再インスタンス後の復元、同名でも別枠を保護すること、日本語名、座標・向き・視線・FOV・経路・秒数・倍率の保持、1未満・10超の番号の拒否。
-- 小数倍率、途中停止、1フレームへの量子化、倍速で音声補助を起動しないこと、回復処理で倍率を二重適用しないこと。
+- 小数倍率、途中停止、1フレームへの量子化、倍速で音声取得を開始しないこと、回復処理で倍率を二重適用しないこと。
 
 ### 実ゲームの受け入れ試験
 

@@ -84,12 +84,12 @@ class FfmpegRecorderIntegrationTest {
         assertNull(recorder.failure());
     }
 
-    @Test void nativeAudioHelperRecordsASilentProcessWithoutPlayingSound() throws Exception {
+    @Test void windowsProcessCaptureRecordsASilentProcessWithoutPlayingSound() throws Exception {
         Path binary = ffmpeg();
-        String helper = System.getenv("WACAMERA_TEST_AUDIO_HELPER");
-        assumeTrue(helper != null && Files.isRegularFile(Path.of(helper)), "Set WACAMERA_TEST_AUDIO_HELPER for Windows audio integration");
+        assumeTrue("true".equalsIgnoreCase(System.getenv("WACAMERA_TEST_WINDOWS_AUDIO")),
+                "Set WACAMERA_TEST_WINDOWS_AUDIO=true to explicitly enable Windows process audio capture");
         FfmpegRecorder recorder = new FfmpegRecorder(new RecordingOptions(binary, temporary, 64, 64, 30, 1,
-                "libx264", Path.of(helper), true));
+                "libx264", null, true));
         try {
             recorder.start();
             recorder.submitFrame(redTopBlueBottom(), System.nanoTime());
@@ -102,14 +102,14 @@ class FfmpegRecorderIntegrationTest {
         } finally { recorder.close(); }
     }
 
-    @Test void nativeAudioHelperCapturesGeneratedToneOnlyWithExplicitAudiblePermission() throws Exception {
+    @Test void windowsProcessCaptureCapturesGeneratedToneOnlyWithExplicitAudiblePermission() throws Exception {
         assumeTrue("true".equalsIgnoreCase(System.getenv("WACAMERA_ALLOW_AUDIBLE_TEST")),
                 "Audible playback is disabled. Explicit WACAMERA_ALLOW_AUDIBLE_TEST=true is required.");
         Path binary = ffmpeg();
-        String helper = System.getenv("WACAMERA_TEST_AUDIO_HELPER");
-        assumeTrue(helper != null && Files.isRegularFile(Path.of(helper)), "Set WACAMERA_TEST_AUDIO_HELPER for Windows audio integration");
+        assumeTrue("true".equalsIgnoreCase(System.getenv("WACAMERA_TEST_WINDOWS_AUDIO")),
+                "Set WACAMERA_TEST_WINDOWS_AUDIO=true to explicitly enable Windows process audio capture");
         FfmpegRecorder recorder = new FfmpegRecorder(new RecordingOptions(binary, temporary, 64, 64, 30, 1,
-                "libx264", Path.of(helper), true));
+                "libx264", null, true));
         Path video;
         // Only this test JVM's generated tone is captured, never an existing user application.
         AudioFormat format = new AudioFormat(48_000, 16, 2, true, false);

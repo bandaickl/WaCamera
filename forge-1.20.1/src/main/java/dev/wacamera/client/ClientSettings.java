@@ -11,18 +11,25 @@ import java.nio.file.StandardCopyOption;
 public final class ClientSettings {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     public String ffmpeg = "ffmpeg";
-    public String audioHelper = "";
+    /** Kept only to preserve old settings; never used to start an external helper. */
+    @Deprecated public String audioHelper = "";
     public String quality = "720p30";
-    public boolean audio = false;
+    public boolean audio = isWindowsX64();
     public String lastShot = "";
 
+    public static boolean isWindowsX64() {
+        String arch = System.getProperty("os.arch", "");
+        return System.getProperty("os.name", "").startsWith("Windows")
+                && (arch.equalsIgnoreCase("amd64") || arch.equalsIgnoreCase("x86_64"));
+    }
+
     public static ClientSettings load(Path root) {
-        // Preserve saved audio choices and external helper paths, including old extracted paths.
+        // Preserve the saved audio preference, including OFF from older versions.
         Path file = root.resolve("settings.json");
         try {
             if (Files.isRegularFile(file)) {
                 ClientSettings s = GSON.fromJson(Files.readString(file), ClientSettings.class);
-                if (s != null && s.ffmpeg != null && s.audioHelper != null && s.quality != null) return s;
+                if (s != null && s.ffmpeg != null && s.quality != null) return s;
             }
         } catch (IOException | RuntimeException ignored) { }
         return new ClientSettings();

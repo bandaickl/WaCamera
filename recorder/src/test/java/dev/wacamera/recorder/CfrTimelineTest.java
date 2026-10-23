@@ -34,8 +34,8 @@ class CfrTimelineTest {
                 1919, 1080, 30, 10, "libx264", null, false));
         assertThrows(IllegalArgumentException.class, () -> new RecordingOptions(null, java.nio.file.Path.of("."),
                 1280, 720, 30, Double.NaN, "libx264", null, false));
-        assertThrows(IllegalArgumentException.class, () -> new RecordingOptions(null, java.nio.file.Path.of("."),
-                1280, 720, 30, 10, "libx264", null, true));
+        assertTrue(new RecordingOptions(null, java.nio.file.Path.of("."),
+                1280, 720, 30, 10, "libx264", null, true).recordAudio());
     }
 
     @Test void timelapseMapsRealTimeToOutputSlotsWithoutRoundingCaptureFps() {
@@ -64,7 +64,7 @@ class CfrTimelineTest {
         assertEquals(10, new CfrTimeline(24, 2.5).framesForDuration(1_000_000_000));
     }
 
-    @Test void timelapseDisablesAudioBeforeCheckingTheHelperAndOldConstructorKeepsAudio() {
+    @Test void timelapseDisablesAudioAndOldConstructorKeepsAudioWithoutUsingTheLegacyHelper() {
         RecordingOptions fast = new RecordingOptions(null, java.nio.file.Path.of("."), 64, 64, 30,
                 1, "libx264", null, true, 10);
         assertFalse(fast.recordAudio());
